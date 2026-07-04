@@ -6,6 +6,7 @@
     "dev": "next dev -p 3000",
     "dev:stop": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 3000 -EA SilentlyContinue | %% { taskkill /PID $_.OwningProcess /F 2>$null }\"",
     "build": "next build",
+    "build:pages": "next build",
     "start": "next start -p 3000",
     "lint": "eslint",
     "setup": "npm install && npm run build"

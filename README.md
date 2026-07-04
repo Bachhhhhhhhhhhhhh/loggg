@@ -5,6 +5,16 @@ Nền tảng học **Logistics & Supply Chain Management** — thiết kế theo
 **Tác giả:** Brian Bach Truong  
 **Tagline:** Học Logistics & Supply Chain một cách chuyên nghiệp và thực tiễn
 
+## Web chạy online (GitHub Pages)
+
+**https://bachhhhhhhhhhhhhh.github.io/loggg/**
+
+Site tự deploy khi push lên nhánh `main` (GitHub Actions). Lần đầu nếu chưa thấy web:
+
+1. Vào repo → **Settings** → **Pages**
+2. **Build and deployment** → Source: **GitHub Actions**
+3. Đợi workflow **Deploy GitHub Pages** chạy xong (tab Actions)
+
 ## Yêu cầu
 
 - **Node.js 18+** (khuyến nghị 20 LTS): https://nodejs.org
@@ -40,11 +50,15 @@ Mở trình duyệt: **http://localhost:3000**
 | Trang trắng / không load | Đảm bảo đã chạy `npm install` |
 | `Another next dev server` | Chạy `start.bat` — script tự xóa lock file |
 
-## Build production
+## Build production (static export)
 
 ```powershell
+# Build cho GitHub Pages
+$env:GITHUB_PAGES='true'
 npm run build
-npm start
+
+# Build local (không basePath) — preview thư mục out/
+npm run build
 ```
 
 ## Công nghệ
@@ -61,9 +75,7 @@ npm start
 - **Thư viện tri thức** — 8 chủ đề khoa học tích hợp (ABC, EOQ, LP, WMS, TMS, OR-Tools, Prophet, SCOR)
 - Dark theme kiểu nền tảng chứng khoán
 
-## Xem web trên máy bạn
-
-GitHub chỉ lưu **mã nguồn**, không tự chạy website. Để xem giao diện LogIQ:
+## Chạy local (development)
 
 ```powershell
 cd C:\Users\user\logiq
