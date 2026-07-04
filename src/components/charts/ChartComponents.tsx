@@ -129,9 +129,10 @@ export function DeliveryTrendChart({ data }: DeliveryTrendChartProps) {
 
 interface CostBreakdownChartProps {
   data: Array<{ name: string; value: number; color: string }>;
+  valueUnit?: string;
 }
 
-export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
+export function CostBreakdownChart({ data, valueUnit = "%" }: CostBreakdownChartProps) {
   return (
     <ChartContainer>
     <ResponsiveContainer width="100%" height={220}>
@@ -155,7 +156,7 @@ export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
             <Cell key={i} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, "Tỷ lệ"]} />
+        <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}${valueUnit}`, "Giá trị"]} />
       </PieChart>
     </ResponsiveContainer>
     </ChartContainer>
@@ -272,6 +273,48 @@ export function GenericLineChart({ data, xKey, lines, height = 220 }: GenericLin
           />
         ))}
       </LineChart>
+    </ResponsiveContainer>
+    </ChartContainer>
+  );
+}
+
+interface GenericAreaChartProps {
+  data: ChartSeriesInput[];
+  xKey: string;
+  areas: Array<{ key: string; name: string; color: string }>;
+  height?: number;
+}
+
+export function GenericAreaChart({ data, xKey, areas, height = 220 }: GenericAreaChartProps) {
+  return (
+    <ChartContainer height={height}>
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+        <defs>
+          {areas.map((area) => (
+            <linearGradient key={area.key} id={`area-${area.key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={area.color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={area.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+        <CartesianGrid {...gridStyle} vertical={false} />
+        <XAxis dataKey={xKey} tick={axisStyle} axisLine={false} tickLine={false} />
+        <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend wrapperStyle={{ fontSize: 10, color: "#64748b", paddingTop: 8 }} />
+        {areas.map((area) => (
+          <Area
+            key={area.key}
+            type="monotone"
+            dataKey={area.key}
+            name={area.name}
+            stroke={area.color}
+            fill={`url(#area-${area.key})`}
+            strokeWidth={2}
+          />
+        ))}
+      </AreaChart>
     </ResponsiveContainer>
     </ChartContainer>
   );

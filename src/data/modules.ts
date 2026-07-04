@@ -12,6 +12,7 @@ export interface Lesson {
     type: "slider" | "input" | "table";
     label: string;
     description: string;
+    toolId?: "eoq" | "inventory" | "abc" | "cost";
   };
 }
 
@@ -81,6 +82,7 @@ print(result[['sku', 'annual_value', 'abc_class']])`,
           type: "table",
           label: "Thử nghiệm phân loại ABC",
           description: "Nhập dữ liệu SKU và xem kết quả phân loại",
+          toolId: "abc",
         },
       },
       {
@@ -247,6 +249,7 @@ print(f"Tổng chi phí: {result['total_cost']:,} VND")`,
           type: "slider",
           label: "Tính EOQ tương tác",
           description: "Điều chỉnh D, S, H và xem biểu đồ chi phí",
+          toolId: "eoq",
         },
       },
       {
@@ -308,6 +311,7 @@ def inventory_simulation(days=365, initial_stock=1000,
           type: "slider",
           label: "Mô phỏng tồn kho",
           description: "Chạy simulation với các tham số khác nhau",
+          toolId: "inventory",
         },
       },
     ],

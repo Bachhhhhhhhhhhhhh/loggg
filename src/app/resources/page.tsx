@@ -75,10 +75,13 @@ export default function ResourcesPage() {
         <CardHeader>
           <CardTitle className="normal-case flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-slate-400" />
-            Tài liệu tham khảo bổ sung
+            Tài liệu tham khảo bổ sung (mô tả)
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-xs text-slate-500 mb-3">
+            Danh mục tham khảo — nội dung chính đã tích hợp trong Thư viện tri thức phía trên.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {curatedResources.map((resource) => (
               <div

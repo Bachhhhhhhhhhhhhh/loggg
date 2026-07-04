@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TrendingUp, BookOpen, Wrench, Database } from "lucide-react";
+import { getCompletionStats } from "@/lib/progress";
 
 const footerLinks = [
   { href: "/learn", label: "Học tập", icon: BookOpen },
@@ -9,6 +10,8 @@ const footerLinks = [
 ];
 
 export function Footer() {
+  const stats = getCompletionStats();
+
   return (
     <footer className="relative border-t border-slate-800/80 bg-slate-950/95 mt-auto">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
@@ -49,11 +52,12 @@ export function Footer() {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
               Thống kê nền tảng
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Module", value: "5" },
-                { label: "Bài học", value: "13+" },
-                { label: "Công cụ", value: "4" },
+                { label: "Module", value: String(stats.moduleCount) },
+                { label: "Bài học", value: String(stats.totalLessons) },
+                { label: "Tri thức", value: String(stats.knowledgeCount) },
+                { label: "Công cụ", value: String(stats.toolCount) },
               ].map((stat) => (
                 <div key={stat.label} className="text-center p-2 rounded-lg bg-slate-900/50 border border-slate-800">
                   <p className="text-lg font-bold text-blue-400 font-mono">{stat.value}</p>
@@ -67,7 +71,7 @@ export function Footer() {
         <div className="mt-8 pt-4 border-t border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-600">
           <p>© 2026 LogIQ — Brian Bach Truong. All rights reserved.</p>
           <p className="font-mono text-slate-500">
-            Học Logistics & Supply Chain một cách chuyên nghiệp và thực tiễn
+            Tiến độ học: {stats.completedLessons}/{stats.totalLessons} bài ({stats.percent}%)
           </p>
         </div>
       </div>

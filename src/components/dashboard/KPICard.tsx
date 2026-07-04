@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,8 +14,14 @@ interface KPICardProps {
   index?: number;
 }
 
+function isChangePositive(kpi: KPI): boolean {
+  if (kpi.change === 0) return true;
+  const polarity = kpi.polarity ?? "higher-is-better";
+  return polarity === "lower-is-better" ? kpi.change < 0 : kpi.change > 0;
+}
+
 export function KPICard({ kpi, index = 0 }: KPICardProps) {
-  const isPositive = kpi.trend === "up" ? kpi.change >= 0 : kpi.change <= 0;
+  const isPositive = isChangePositive(kpi);
   const TrendIcon = kpi.change === 0 ? Minus : isPositive ? TrendingUp : TrendingDown;
 
   return (
@@ -26,7 +33,7 @@ export function KPICard({ kpi, index = 0 }: KPICardProps) {
     >
       <Card
         className="card-accent group hover:border-slate-600/80 hover:glow-blue transition-all duration-300 h-full"
-        style={{ "--accent-color": isPositive ? "#22c55e" : "#ef4444" } as React.CSSProperties}
+        style={{ "--accent-color": isPositive ? "#22c55e" : "#ef4444" } as CSSProperties}
       >
         <CardContent className="p-3.5">
           <div className="flex items-start justify-between gap-2">

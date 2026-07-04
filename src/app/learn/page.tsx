@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { modules } from "@/data/modules";
+import { getCompletionStats, getModuleProgress } from "@/lib/progress";
 
 const iconMap: Record<string, ElementType> = {
   BarChart3,
@@ -19,18 +20,14 @@ const iconMap: Record<string, ElementType> = {
 };
 
 export default function LearnPage() {
-  const totalLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
-  const completedLessons = modules.reduce(
-    (s, m) => s + m.lessons.filter((l) => l.completed).length,
-    0
-  );
+  const { totalLessons, completedLessons, percent } = getCompletionStats();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
       <PageHeader
         title="Học tập"
         subtitle={`${modules.length} MODULE · ${totalLessons} BÀI HỌC · ${completedLessons} HOÀN THÀNH`}
-        badge={`${Math.round((completedLessons / totalLessons) * 100)}%`}
+        badge={`${percent}%`}
         badgeVariant="teal"
         icon={<BookOpen className="h-5 w-5" />}
       />
@@ -38,7 +35,7 @@ export default function LearnPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {modules.map((mod, i) => {
           const Icon = iconMap[mod.icon] || BookOpen;
-          const completed = mod.lessons.filter((l) => l.completed).length;
+          const { completed, total, percent: modPercent } = getModuleProgress(mod);
 
           return (
             <motion.div
@@ -66,10 +63,10 @@ export default function LearnPage() {
 
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-[10px] text-slate-500">
-                        <span>{completed}/{mod.lessons.length} bài học</span>
-                        <span>{mod.progress}%</span>
+                        <span>{completed}/{total} bài học</span>
+                        <span>{modPercent}%</span>
                       </div>
-                      <Progress value={mod.progress} color="#14B8A6" />
+                      <Progress value={modPercent} color="#14B8A6" />
                     </div>
 
                     <div className="flex flex-wrap gap-1 mt-3">

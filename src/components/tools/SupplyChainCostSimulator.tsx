@@ -11,15 +11,26 @@ export function SupplyChainCostSimulator() {
   const [orderPct, setOrderPct] = useState(12);
   const [totalBudget, setTotalBudget] = useState(1000000000);
 
-  const otherPct = Math.max(0, 100 - transportPct - warehousePct - inventoryPct - orderPct);
+  const rawTotal = transportPct + warehousePct + inventoryPct + orderPct;
+  const overBudget = rawTotal > 100;
 
-  const breakdown = useMemo(() => [
-    { name: "Vận chuyển", value: transportPct, color: "#3B82F6", amount: Math.round(totalBudget * transportPct / 100) },
-    { name: "Kho bãi", value: warehousePct, color: "#14B8A6", amount: Math.round(totalBudget * warehousePct / 100) },
-    { name: "Tồn kho", value: inventoryPct, color: "#8B5CF6", amount: Math.round(totalBudget * inventoryPct / 100) },
-    { name: "Xử lý đơn", value: orderPct, color: "#F59E0B", amount: Math.round(totalBudget * orderPct / 100) },
-    { name: "Khác", value: otherPct, color: "#6B7280", amount: Math.round(totalBudget * otherPct / 100) },
-  ], [transportPct, warehousePct, inventoryPct, orderPct, otherPct, totalBudget]);
+  const breakdown = useMemo(() => {
+    const items = [
+      { name: "Vận chuyển", value: transportPct, color: "#3B82F6" },
+      { name: "Kho bãi", value: warehousePct, color: "#14B8A6" },
+      { name: "Tồn kho", value: inventoryPct, color: "#8B5CF6" },
+      { name: "Xử lý đơn", value: orderPct, color: "#F59E0B" },
+    ];
+    const otherPct = Math.max(0, 100 - rawTotal);
+    const all = [...items, { name: "Khác", value: otherPct, color: "#6B7280" }];
+    const sum = all.reduce((s, i) => s + i.value, 0) || 1;
+
+    return all.map((item) => ({
+      ...item,
+      normalized: Math.round((item.value / sum) * 1000) / 10,
+      amount: Math.round((totalBudget * item.value) / (overBudget ? sum : 100)),
+    }));
+  }, [transportPct, warehousePct, inventoryPct, orderPct, rawTotal, totalBudget, overBudget]);
 
   const savings = useMemo(() => {
     const transportSave = breakdown[0].amount * 0.12;
@@ -32,6 +43,12 @@ export function SupplyChainCostSimulator() {
       total: Math.round(transportSave + inventorySave + warehouseSave),
     };
   }, [breakdown]);
+
+  const chartData = breakdown.map((b) => ({
+    name: b.name,
+    value: b.normalized,
+    color: b.color,
+  }));
 
   const sliders = [
     { label: "Vận chuyển (%)", value: transportPct, set: setTransportPct, color: "#3B82F6" },
@@ -46,18 +63,25 @@ export function SupplyChainCostSimulator() {
         <label className="text-xs text-slate-400 mb-1 block">Tổng ngân sách logistics (VND)</label>
         <input
           type="number"
+          min={1}
           value={totalBudget}
-          onChange={(e) => setTotalBudget(Number(e.target.value))}
+          onChange={(e) => setTotalBudget(Math.max(1, Number(e.target.value) || 0))}
           className="w-full h-9 rounded-md border border-slate-700 bg-slate-800/50 px-3 text-sm text-slate-100 font-mono"
         />
       </div>
+
+      {overBudget && (
+        <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          Tổng phân bổ ({rawTotal}%) vượt 100% — biểu đồ được chuẩn hóa để hiển thị tỷ lệ tương đối.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Tổng chi phí", value: `${(totalBudget / 1e9).toFixed(2)}B`, color: "text-slate-200" },
           { label: "Tiềm năng tiết kiệm", value: `${(savings.total / 1e6).toFixed(0)}M`, color: "text-emerald-400" },
           { label: "% Tiết kiệm", value: `${((savings.total / totalBudget) * 100).toFixed(1)}%`, color: "text-teal-400" },
-          { label: "Hạng mục lớn nhất", value: breakdown.reduce((a, b) => a.value > b.value ? a : b).name, color: "text-blue-400" },
+          { label: "Hạng mục lớn nhất", value: breakdown.reduce((a, b) => (a.value > b.value ? a : b)).name, color: "text-blue-400" },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="p-3 text-center">
@@ -89,14 +113,16 @@ export function SupplyChainCostSimulator() {
                 />
               </div>
             ))}
-            <p className="text-xs text-slate-500">Khác: {otherPct}%</p>
+            <p className="text-xs text-slate-500">
+              Khác: {Math.max(0, 100 - rawTotal)}% · Tổng nhập: {rawTotal}%
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader><CardTitle>Biểu đồ chi phí</CardTitle></CardHeader>
           <CardContent>
-            <CostBreakdownChart data={breakdown} />
+            <CostBreakdownChart data={chartData} />
           </CardContent>
         </Card>
       </div>

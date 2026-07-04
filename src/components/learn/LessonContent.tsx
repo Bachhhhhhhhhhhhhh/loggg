@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { CodeBlock } from "./CodeBlock";
-import { CostBreakdownChart, GenericBarChart, GenericLineChart } from "@/components/charts/ChartComponents";
+import { CostBreakdownChart, GenericAreaChart, GenericBarChart, GenericLineChart } from "@/components/charts/ChartComponents";
 import type { Lesson } from "@/data/modules";
 import { getKnowledgeEntry } from "@/data/knowledge-base";
 
@@ -51,7 +51,7 @@ function LessonChart({ type }: { type: Lesson["chartType"] }) {
         <CardTitle>Biểu đồ minh họa</CardTitle>
       </CardHeader>
       <CardContent className="pt-2">
-        {type === "pie" && <CostBreakdownChart data={samplePieData} />}
+        {type === "pie" && <CostBreakdownChart data={samplePieData} valueUnit="" />}
         {type === "bar" && (
           <GenericBarChart
             data={sampleBarData}
@@ -71,7 +71,7 @@ function LessonChart({ type }: { type: Lesson["chartType"] }) {
           />
         )}
         {type === "area" && (
-          <GenericLineChart
+          <GenericAreaChart
             data={[
               { day: "1", stock: 1000 },
               { day: "5", stock: 750 },
@@ -82,7 +82,7 @@ function LessonChart({ type }: { type: Lesson["chartType"] }) {
               { day: "30", stock: 800 },
             ]}
             xKey="day"
-            lines={[{ key: "stock", name: "Tồn kho", color: "#14B8A6" }]}
+            areas={[{ key: "stock", name: "Tồn kho", color: "#14B8A6" }]}
           />
         )}
       </CardContent>
@@ -184,12 +184,12 @@ export function LessonContent({ lesson, moduleTitle, prevLesson, nextLesson }: L
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-slate-400 mb-4">{lesson.experiment.description}</p>
-                <Link href="/tools">
-                  <Button variant="success" size="sm">
+                <Button variant="success" size="sm" asChild>
+                  <Link href={lesson.experiment.toolId ? `/tools?tool=${lesson.experiment.toolId}` : "/tools"}>
                     <FlaskConical className="h-3.5 w-3.5" />
                     Mở công cụ tương tác
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -234,11 +234,11 @@ export function LessonContent({ lesson, moduleTitle, prevLesson, nextLesson }: L
               <div />
             )}
             {nextLesson ? (
-              <Link href={`/learn/${nextLesson.moduleId}/${nextLesson.lessonId}`}>
-                <Button size="sm">
+              <Button size="sm" asChild>
+                <Link href={`/learn/${nextLesson.moduleId}/${nextLesson.lessonId}`}>
                   Tiếp theo: {nextLesson.title.length > 20 ? nextLesson.title.slice(0, 20) + "…" : nextLesson.title}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             ) : (
               <Badge variant="success">Hoàn thành module!</Badge>
             )}

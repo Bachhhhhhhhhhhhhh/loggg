@@ -171,12 +171,16 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
           {entry.relatedToolIds && entry.relatedToolIds.length > 0 && (
             <div>
               <p className="text-[10px] text-slate-500 uppercase mb-2">Công cụ tương tác</p>
-              <Link href="/tools">
-                <Badge variant="success" className="cursor-pointer">
-                  <FlaskConical className="h-3 w-3 mr-1" />
-                  Mở công cụ thực hành
-                </Badge>
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                {entry.relatedToolIds.map((toolId) => (
+                  <Link key={toolId} href={`/tools?tool=${toolId}`}>
+                    <Badge variant="success" className="cursor-pointer hover:bg-emerald-500/20">
+                      <FlaskConical className="h-3 w-3 mr-1" />
+                      {toolId.toUpperCase()}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>

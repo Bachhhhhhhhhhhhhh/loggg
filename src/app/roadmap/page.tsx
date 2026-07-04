@@ -7,11 +7,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { phases } from "@/data/roadmap";
+import { getEnrichedPhases } from "@/lib/progress";
 
 export default function RoadmapPage() {
+  const phases = getEnrichedPhases();
   const totalLessons = phases.reduce((s, p) => s + p.lessons, 0);
-  const avgProgress = Math.round(phases.reduce((s, p) => s + p.progress, 0) / phases.length);
+  const avgProgress = totalLessons > 0
+    ? Math.round(phases.reduce((s, p) => s + p.progress, 0) / phases.length)
+    : 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
@@ -49,10 +52,11 @@ export default function RoadmapPage() {
               transition={{ delay: i * 0.1 }}
             >
               <Link href={`/roadmap/${phase.id}`}>
-                <Card className="hover:border-slate-600 transition-all group ml-0 md:ml-12">
+                <Card className="relative hover:border-slate-600 transition-all group ml-0 md:ml-12">
                   <CardContent className="p-5">
-                    <div className="absolute left-4 hidden md:flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-700 bg-slate-900 group-hover:border-blue-500 transition-colors"
-                      style={{ marginTop: "4px" }}
+                    <div
+                      className="absolute left-4 hidden md:flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-700 bg-slate-900 group-hover:border-blue-500 transition-colors"
+                      style={{ top: "1.25rem" }}
                     >
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: phase.color }} />
                     </div>

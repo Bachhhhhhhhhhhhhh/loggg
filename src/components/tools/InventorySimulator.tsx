@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GenericLineChart } from "@/components/charts/ChartComponents";
+import { mulberry32 } from "@/lib/random";
 
 function simulate(
   days: number,
@@ -11,15 +12,16 @@ function simulate(
   orderQty: number,
   demandMean: number,
   demandStd: number,
-  _seed: number
+  seed: number
 ) {
-  void _seed;
+  const rand = mulberry32(seed);
   const stockLevels: Array<{ day: string; stock: number; demand: number }> = [];
   let stock = initialStock;
   let stockouts = 0;
 
   for (let day = 1; day <= days; day++) {
-    const demand = Math.max(0, demandMean + (Math.random() - 0.5) * 2 * demandStd);
+    const z = rand() * 2 - 1;
+    const demand = Math.max(0, demandMean + z * demandStd);
     stock -= demand;
     if (stock < 0) {
       stockouts++;
@@ -41,7 +43,7 @@ export function InventorySimulator() {
   const [orderQty, setOrderQty] = useState(500);
   const [demandMean, setDemandMean] = useState(50);
   const [demandStd, setDemandStd] = useState(10);
-  const [seed, setSeed] = useState(0);
+  const [seed, setSeed] = useState(1);
 
   const { stockLevels, stockouts, avgStock } = useMemo(
     () => simulate(90, initialStock, reorderPoint, orderQty, demandMean, demandStd, seed),
@@ -98,7 +100,7 @@ export function InventorySimulator() {
               onClick={() => setSeed((s) => s + 1)}
               className="w-full h-9 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
             >
-              Chạy lại mô phỏng
+              Chạy lại mô phỏng (seed {seed})
             </button>
           </CardContent>
         </Card>

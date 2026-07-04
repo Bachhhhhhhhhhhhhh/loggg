@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -24,22 +25,23 @@ import {
   GenericBarChart,
 } from "@/components/charts/ChartComponents";
 import { dashboardKPIs, chartData, marketWatchData } from "@/data/kpis";
-import { phases } from "@/data/roadmap";
-
-const stats = [
-  { icon: Layers, label: "5 Module", value: "Chuyên sâu" },
-  { icon: BookOpen, label: "13+ Bài học", value: "Thực hành" },
-  { icon: Zap, label: "4 Công cụ", value: "Tương tác" },
-  { icon: Target, label: "Python", value: "Code thật" },
-];
+import { getCompletionStats, getEnrichedPhases } from "@/lib/progress";
 
 export default function HomePage() {
+  const platformStats = getCompletionStats();
+  const phases = getEnrichedPhases();
+  const stats = [
+    { icon: Layers, label: `${platformStats.moduleCount} Module`, value: "Chuyên sâu" },
+    { icon: BookOpen, label: `${platformStats.totalLessons} Bài học`, value: "Thực hành" },
+    { icon: Zap, label: `${platformStats.toolCount} Công cụ`, value: "Tương tác" },
+    { icon: Target, label: `${platformStats.knowledgeCount} Chủ đề`, value: "Tri thức" },
+  ];
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
       <PageHeader
         title="Tổng quan Logistics"
         subtitle="MARKET OVERVIEW — Chỉ số hiệu suất chuỗi cung ứng thời gian thực"
-        badge="LIVE DATA"
+        badge="DEMO DATA"
         badgeVariant="success"
         icon={<BarChart3 className="h-5 w-5" />}
       />
@@ -117,19 +119,19 @@ export default function HomePage() {
                 — giống các nền tảng tài chính hàng đầu thế giới.
               </p>
               <div className="flex flex-wrap gap-3 mt-6">
-                <Link href="/learn">
-                  <Button size="lg">
+                <Button size="lg" asChild>
+                  <Link href="/learn">
                     <BookOpen className="h-4 w-4" />
                     Bắt đầu học
                     <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/tools">
-                  <Button variant="outline" size="lg">
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/tools">
                     <Zap className="h-4 w-4" />
                     Thử công cụ
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -173,7 +175,7 @@ export default function HomePage() {
                   <Link href={`/roadmap/${phase.id}`}>
                     <Card
                       className="card-accent hover:border-slate-600 transition-all h-full group"
-                      style={{ "--accent-color": phase.color } as React.CSSProperties}
+                      style={{ "--accent-color": phase.color } as CSSProperties}
                     >
                       <CardContent className="p-3.5">
                         <div className="flex items-center gap-2 mb-2">
@@ -226,12 +228,12 @@ export default function HomePage() {
             />
             <div className="grid grid-cols-2 gap-2 mt-4">
               <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10 text-center">
-                <p className="text-lg font-bold text-blue-400 font-mono">23</p>
+                <p className="text-lg font-bold text-blue-400 font-mono">{platformStats.completedLessons}</p>
                 <p className="text-[10px] text-slate-500">Bài đã học</p>
               </div>
               <div className="p-2.5 rounded-lg bg-teal-500/5 border border-teal-500/10 text-center">
-                <p className="text-lg font-bold text-teal-400 font-mono">13</p>
-                <p className="text-[10px] text-slate-500">Lần dùng công cụ</p>
+                <p className="text-lg font-bold text-teal-400 font-mono">{platformStats.percent}%</p>
+                <p className="text-[10px] text-slate-500">Tiến độ học</p>
               </div>
             </div>
           </CardContent>

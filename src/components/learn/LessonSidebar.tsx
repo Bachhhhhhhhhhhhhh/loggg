@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, CheckCircle2, Circle, BookOpen } from "lucid
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import type { Module } from "@/data/modules";
+import { getCompletionStats, getModuleProgress } from "@/lib/progress";
 
 interface LessonSidebarProps {
   modules: Module[];
@@ -20,8 +21,7 @@ export function LessonSidebar({ modules, activeModuleId, activeLessonId }: Lesso
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const totalLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
-  const completed = modules.reduce((s, m) => s + m.lessons.filter((l) => l.completed).length, 0);
+  const { totalLessons, completedLessons, percent } = getCompletionStats();
 
   return (
     <aside className="w-full lg:w-72 shrink-0 border-r border-slate-800/60 bg-slate-950/50 backdrop-blur-sm overflow-y-auto lg:max-h-[calc(100vh-5.25rem)]">
@@ -33,16 +33,17 @@ export function LessonSidebar({ modules, activeModuleId, activeLessonId }: Lesso
           </h2>
         </div>
         <div className="flex justify-between text-[10px] text-slate-600 mb-1 font-mono">
-          <span>{completed}/{totalLessons} bài</span>
-          <span className="text-blue-400">{Math.round((completed / totalLessons) * 100)}%</span>
+          <span>{completedLessons}/{totalLessons} bài</span>
+          <span className="text-blue-400">{percent}%</span>
         </div>
-        <Progress value={(completed / totalLessons) * 100} className="h-1" />
+        <Progress value={percent} className="h-1" />
       </div>
 
       <div className="p-2 space-y-0.5">
         {modules.map((mod) => {
           const isOpen = collapsed[mod.id] !== true;
           const isActive = mod.id === activeModuleId;
+          const { percent: modPercent } = getModuleProgress(mod);
 
           return (
             <div key={mod.id}>
@@ -63,8 +64,8 @@ export function LessonSidebar({ modules, activeModuleId, activeLessonId }: Lesso
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-medium text-slate-300 truncate">{mod.title}</p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <Progress value={mod.progress} className="h-0.5 flex-1" color="#14B8A6" />
-                    <span className="text-[9px] text-slate-600 font-mono">{mod.progress}%</span>
+                    <Progress value={modPercent} className="h-0.5 flex-1" color="#14B8A6" />
+                    <span className="text-[9px] text-slate-600 font-mono">{modPercent}%</span>
                   </div>
                 </div>
               </button>

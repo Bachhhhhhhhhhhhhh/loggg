@@ -14,7 +14,7 @@ export function MarketTicker() {
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
         </span>
         <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
-          LIVE
+          DEMO
         </span>
       </div>
 

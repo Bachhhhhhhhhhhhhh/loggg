@@ -5,6 +5,8 @@ export interface KPI {
   change: number;
   unit?: string;
   trend: "up" | "down" | "neutral";
+  /** higher-is-better: tăng = tốt. lower-is-better: giảm = tốt */
+  polarity?: "higher-is-better" | "lower-is-better";
   description: string;
   sparkline?: number[];
 }
@@ -37,6 +39,7 @@ export const dashboardKPIs: KPI[] = [
     change: -1.2,
     unit: "%",
     trend: "down",
+    polarity: "higher-is-better",
     description: "Inventory Turnover Efficiency",
     sparkline: [90, 89, 88.5, 88, 87.8, 87.3],
   },
@@ -57,6 +60,7 @@ export const dashboardKPIs: KPI[] = [
     change: -0.5,
     unit: "ngày",
     trend: "up",
+    polarity: "lower-is-better",
     description: "Thời gian từ đặt hàng đến giao hàng",
     sparkline: [5.1, 4.9, 4.7, 4.5, 4.3, 4.2],
   },
@@ -67,6 +71,7 @@ export const dashboardKPIs: KPI[] = [
     change: -3.2,
     unit: "tCO₂",
     trend: "up",
+    polarity: "lower-is-better",
     description: "Phát thải logistics trên đơn vị vận chuyển",
     sparkline: [2.5, 2.4, 2.35, 2.28, 2.2, 2.14],
   },
@@ -90,9 +95,6 @@ export const tickerData: TickerItem[] = [
   { symbol: "DSO", name: "Days Sales Outstanding", value: "32", change: -2, unit: "d" },
   { symbol: "CO2", name: "Carbon/Unit", value: "2.14", change: -3.2, unit: "t" },
   { symbol: "WMS", name: "Warehouse Utilization", value: "78.3", change: 3.1, unit: "%" },
-  { symbol: "OTD", name: "On-time Delivery", value: "94.2", change: 2.3, unit: "%" },
-  { symbol: "INV", name: "Inventory Turnover", value: "8.7", change: -0.4, unit: "x" },
-  { symbol: "FILL", name: "Order Fill Rate", value: "96.8", change: 0.8, unit: "%" },
 ];
 
 export interface MarketWatchItem {

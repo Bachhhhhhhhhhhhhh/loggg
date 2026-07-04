@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calculator, Package, BarChart3, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -40,17 +42,30 @@ const tools = [
     icon: DollarSign,
     color: "#F59E0B",
   },
-];
+] as const;
 
-const toolComponents: Record<string, React.ReactNode> = {
+type ToolId = (typeof tools)[number]["id"];
+
+const toolComponents: Record<ToolId, ReactNode> = {
   eoq: <EOQCalculator />,
   inventory: <InventorySimulator />,
   abc: <ABCAnalysisTool />,
   cost: <SupplyChainCostSimulator />,
 };
 
-export default function ToolsPage() {
-  const [activeTool, setActiveTool] = useState("eoq");
+function isValidToolId(id: string | null): id is ToolId {
+  return tools.some((t) => t.id === id);
+}
+
+function ToolsPageContent() {
+  const searchParams = useSearchParams();
+  const toolParam = searchParams.get("tool");
+  const [userTool, setUserTool] = useState<ToolId>("eoq");
+  const activeTool = useMemo(
+    () => (isValidToolId(toolParam) ? toolParam : userTool),
+    [toolParam, userTool]
+  );
+
   const active = tools.find((t) => t.id === activeTool)!;
 
   return (
@@ -69,7 +84,7 @@ export default function ToolsPage() {
           return (
             <motion.button
               key={tool.id}
-              onClick={() => setActiveTool(tool.id)}
+              onClick={() => setUserTool(tool.id)}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               className={cn(
@@ -78,7 +93,7 @@ export default function ToolsPage() {
                   ? "border-blue-500/30 bg-blue-500/5 glow-blue"
                   : "border-slate-800/60 bg-slate-900/40 hover:border-slate-700"
               )}
-              style={{ "--accent-color": tool.color } as React.CSSProperties}
+              style={{ "--accent-color": tool.color } as CSSProperties}
             >
               <Icon className="h-5 w-5 mb-2.5" style={{ color: tool.color }} />
               <p className="text-sm font-semibold text-slate-200">{tool.label}</p>
@@ -108,5 +123,17 @@ export default function ToolsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ToolsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-slate-500">Đang tải công cụ...</div>
+      }
+    >
+      <ToolsPageContent />
+    </Suspense>
   );
 }

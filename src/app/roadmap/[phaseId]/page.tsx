@@ -7,14 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { phases } from "@/data/roadmap";
 import { modules } from "@/data/modules";
-
-const phaseModuleMap: Record<string, string> = {
-  foundation: "abc-analysis",
-  optimization: "linear-programming",
-  inventory: "inventory-management",
-  warehouse: "warehouse-logistics",
-  ml: "machine-learning",
-};
+import { PHASE_MODULE_MAP, getPhaseProgress } from "@/lib/progress";
 
 export function generateStaticParams() {
   return phases.map((p) => ({ phaseId: p.id }));
@@ -29,7 +22,8 @@ export default async function PhaseDetailPage({
   const phase = phases.find((p) => p.id === phaseId);
   if (!phase) notFound();
 
-  const moduleId = phaseModuleMap[phaseId];
+  const { lessons, progress } = getPhaseProgress(phaseId);
+  const moduleId = PHASE_MODULE_MAP[phaseId];
   const mod = modules.find((m) => m.id === moduleId);
 
   return (
@@ -49,7 +43,7 @@ export default async function PhaseDetailPage({
           <h1 className="text-2xl font-bold text-slate-100">{phase.title}</h1>
           <p className="text-sm text-slate-400">{phase.subtitle}</p>
           <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {phase.lessons} bài học</span>
+            <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {lessons} bài học</span>
             <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {phase.duration}</span>
           </div>
         </div>
@@ -61,9 +55,9 @@ export default async function PhaseDetailPage({
           <div className="mt-4">
             <div className="flex justify-between text-xs text-slate-400 mb-1">
               <span>Tiến độ giai đoạn</span>
-              <span>{phase.progress}%</span>
+              <span>{progress}%</span>
             </div>
-            <Progress value={phase.progress} color={phase.color} className="h-2" />
+            <Progress value={progress} color={phase.color} className="h-2" />
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
             {phase.skills.map((s) => (
@@ -98,12 +92,12 @@ export default async function PhaseDetailPage({
       )}
 
       {mod && (
-        <Link href={`/learn/${mod.id}/${mod.lessons[0].id}`}>
-          <Button size="lg">
+        <Button size="lg" asChild>
+          <Link href={`/learn/${mod.id}/${mod.lessons[0].id}`}>
             <BookOpen className="h-4 w-4" />
             Bắt đầu học giai đoạn này
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       )}
     </div>
   );
