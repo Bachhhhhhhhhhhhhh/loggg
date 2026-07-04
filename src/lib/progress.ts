@@ -8,9 +8,10 @@ export const PHASE_MODULE_MAP: Record<string, string> = {
   inventory: "inventory-management",
   warehouse: "warehouse-logistics",
   ml: "machine-learning",
+  trade: "incoterms-trade",
 };
 
-export const TOOL_COUNT = 4;
+export const TOOL_COUNT = 5;
 
 export function getModuleProgress(mod: Module) {
   const completed = mod.lessons.filter((l) => l.completed).length;

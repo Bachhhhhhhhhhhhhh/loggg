@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calculator, Package, BarChart3, DollarSign } from "lucide-react";
+import { Calculator, Package, BarChart3, DollarSign, Globe } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { EOQCalculator } from "@/components/tools/EOQCalculator";
 import { InventorySimulator } from "@/components/tools/InventorySimulator";
 import { ABCAnalysisTool } from "@/components/tools/ABCAnalysisTool";
 import { SupplyChainCostSimulator } from "@/components/tools/SupplyChainCostSimulator";
+import { IncotermsAdvisor } from "@/components/tools/IncotermsAdvisor";
 
 const tools = [
   {
@@ -42,6 +43,13 @@ const tools = [
     icon: DollarSign,
     color: "#F59E0B",
   },
+  {
+    id: "incoterms",
+    label: "Incoterms Advisor",
+    description: "Tư vấn 11 điều khoản ICC 2020 + ma trận",
+    icon: Globe,
+    color: "#0EA5E9",
+  },
 ] as const;
 
 type ToolId = (typeof tools)[number]["id"];
@@ -51,6 +59,7 @@ const toolComponents: Record<ToolId, ReactNode> = {
   inventory: <InventorySimulator />,
   abc: <ABCAnalysisTool />,
   cost: <SupplyChainCostSimulator />,
+  incoterms: <IncotermsAdvisor />,
 };
 
 function isValidToolId(id: string | null): id is ToolId {
@@ -73,11 +82,11 @@ function ToolsPageContent() {
       <PageHeader
         title="Công cụ tương tác"
         subtitle="INTERACTIVE TOOLS — Phân tích & mô phỏng Supply Chain"
-        badge="4 TOOLS"
+        badge="5 TOOLS"
         icon={<Calculator className="h-5 w-5" />}
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {tools.map((tool) => {
           const Icon = tool.icon;
           const isActive = activeTool === tool.id;

@@ -100,13 +100,15 @@ export default function AboutPage() {
               </Link>
             ))}
           </div>
-          <Link
-            href="/resources"
-            className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline mt-4"
-          >
-            <BookOpen className="h-3 w-3" />
-            Xem Thư viện tri thức đầy đủ →
-          </Link>
+          <div className="flex flex-wrap gap-4 mt-4">
+            <Link href="/incoterms/" className="inline-flex items-center gap-1 text-xs text-teal-400 hover:underline">
+              Incoterms® 2020 đầy đủ →
+            </Link>
+            <Link href="/resources/" className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline">
+              <BookOpen className="h-3 w-3" />
+              Thư viện tri thức →
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -157,13 +157,13 @@ export default function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle>5 Giai đoạn học tập</CardTitle>
+            <CardTitle>{phases.length} Giai đoạn học tập</CardTitle>
             <Link href="/roadmap" className="text-[10px] text-blue-400 hover:underline font-medium">
               Xem lộ trình đầy đủ →
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               {phases.map((phase, i) => (
                 <motion.div
                   key={phase.id}

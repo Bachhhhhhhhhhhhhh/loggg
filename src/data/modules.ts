@@ -12,7 +12,7 @@ export interface Lesson {
     type: "slider" | "input" | "table";
     label: string;
     description: string;
-    toolId?: "eoq" | "inventory" | "abc" | "cost";
+    toolId?: "eoq" | "inventory" | "abc" | "cost" | "incoterms";
   };
 }
 
@@ -355,7 +355,7 @@ def inventory_simulation(days=365, initial_stock=1000,
 - **Freight costing:** Tính chi phí theo km, kg, zone, fuel surcharge
 
 **Cơ sở khoa học:** VRP là bài toán NP-hard. Với n điểm giao, số permutation là n! — cần thuật toán heuristic (savings algorithm, tabu search) hoặc OR-Tools cho bài toán >20 nodes.`,
-        knowledgeRefs: ["fleetbase-tms", "google-or-tools"],
+        knowledgeRefs: ["fleetbase-tms", "google-or-tools", "incoterms-2020"],
         chartType: "line",
       },
       {
@@ -433,6 +433,185 @@ def detect_anomalies(data, contamination=0.05):
     anomalies = data[predictions == -1]
     return anomalies`,
         chartType: "bar",
+      },
+    ],
+  },
+  {
+    id: "incoterms-trade",
+    title: "Incoterms® 2020 & Thương mại QT",
+    description: "11 điều khoản ICC — rủi ro, chi phí, chứng từ, bảo hiểm",
+    icon: "Globe",
+    progress: 0,
+    lessons: [
+      {
+        id: "incoterms-intro",
+        title: "Giới thiệu Incoterms® 2020",
+        duration: "25 phút",
+        completed: false,
+        description: "Lịch sử ICC, phạm vi áp dụng và cấu trúc 11 điều khoản",
+        theory: `**Incoterms® 2020** là bộ quy tắc do ICC (International Chamber of Commerce) ban hành, xác định trách nhiệm **giao hàng** giữa người bán và người mua trong giao dịch quốc tế.
+
+**Không quy định:** quyền sở hữu, thanh toán, chất lượng, giá — chỉ giao hàng và rủi ro/chi phí liên quan.
+
+**11 điều khoản chia 4 nhóm:**
+- **E — Departure:** EXW (trách nhiệm seller tối thiểu)
+- **F — Main carriage unpaid:** FCA, FAS, FOB
+- **C — Main carriage paid:** CFR, CIF, CPT, CIP
+- **D — Arrival:** DAP, DPU, DDP (seller chịu nhiều nhất)
+
+**Quy tắc vàng:** Luôn ghi **Incoterm + địa điểm cụ thể + Incoterms® 2020**. Ví dụ: *CIF Rotterdam, Incoterms® 2020*.`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "pie",
+      },
+      {
+        id: "incoterms-group-ef",
+        title: "Nhóm E & F — EXW, FCA, FAS, FOB",
+        duration: "35 phút",
+        completed: false,
+        description: "Điều khoản giao hàng tại xưởng, carrier và trên tàu",
+        theory: `**EXW** — Seller đặt hàng sẵn sàng tại xưởng. Buyer chịu mọi thứ từ đó. Rủi ro chuyển sớm nhất.
+
+**FCA** — Seller giao đã export cleared cho carrier buyer tại điểm đặt tên. **Bắt buộc thay FOB** khi giao container tại CY/CFS.
+
+**FAS** — Hàng đặt dọc mạn tàu (sea only). Ít dùng, chủ yếu bulk.
+
+**FOB** — Hàng on board tại cảng xuất (sea only). Phổ biến xuất khẩu VN đường biển truyền thống.
+
+**So sánh FCA vs FOB:** Container → FCA. Break bulk on vessel → FOB.`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "bar",
+      },
+      {
+        id: "incoterms-group-c",
+        title: "Nhóm C — CFR, CIF, CPT, CIP",
+        duration: "35 phút",
+        completed: false,
+        description: "Seller trả cước — nguyên tắc 'hai điểm then chốt'",
+        theory: `Nhóm C: Seller trả **main carriage** nhưng **rủi ro chuyển sớm hơn** điểm đến — gọi là *two critical points*.
+
+**CFR / CIF** (sea only):
+- Risk: On board cảng xuất
+- Cost: Freight đến cảng đích (+ insurance với CIF)
+- CIF: Seller mua bảo hiểm tối thiểu ICC(C), 110% giá trị
+
+**CPT / CIP** (all modes):
+- Risk: Giao carrier đầu tiên
+- CPT: Buyer tự bảo hiểm
+- CIP: Seller mua ICC(A) all-risk minimum
+
+**Lưu ý:** CFR/CIF buyer vẫn chịu rủi ro trên biển dù seller trả cước!`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "line",
+      },
+      {
+        id: "incoterms-group-d",
+        title: "Nhóm D — DAP, DPU, DDP",
+        duration: "30 phút",
+        completed: false,
+        description: "Giao đến nơi — từ DAP đến trọn gói DDP",
+        theory: `**DAP** — Delivered At Place: Hàng sẵn sàng dỡ tại địa điểm đích. Seller lo freight đến nơi; **buyer lo import**.
+
+**DPU** — Delivered at Place Unloaded: Seller chịu **dỡ hàng** tại đích (thay DAT 2010). Duy nhất Incoterm bắt seller unloading.
+
+**DDP** — Delivered Duty Paid: Seller lo **cả thuế nhập khẩu + cleared import**. Trách nhiệm seller tối đa.
+
+**Chọn DDP khi:** Seller có kinh nghiệm/thực thể tại nước nhập, e-commerce cross-border, hoặc buyer muốn giá trọn gói.`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "area",
+      },
+      {
+        id: "incoterms-risk-cost",
+        title: "Ma trận Rủi ro & Chi phí",
+        duration: "30 phút",
+        completed: false,
+        description: "Phân tích điểm chuyển rủi ro vs điểm chuyển chi phí",
+        theory: `Mỗi Incoterm xác định 2 mốc quan trọng:
+
+1. **Điểm chuyển RỦI RO** — Ai chịu mất mát/hư hỏng từ đó?
+2. **Điểm chuyển CHI PHÍ** — Ai trả các khoản phí logistics?
+
+**Nhóm F:** Risk = Cost tại cùng điểm (carrier/on board)
+**Nhóm C:** Risk sớm, Cost muộn — seller trả freight nhưng không chịu rủi ro trên đường
+**Nhóm D:** Risk và cost đến gần đích (DDP đến cleared import)
+
+Dùng ma trận 11 điều khoản trên LogIQ để so sánh từng dòng nghĩa vụ.`,
+        knowledgeRefs: ["incoterms-2020"],
+        experiment: {
+          type: "table",
+          label: "Ma trận Incoterms tương tác",
+          description: "So sánh 11 điều khoản theo phương thức vận tải",
+          toolId: "incoterms",
+        },
+      },
+      {
+        id: "incoterms-insurance-docs",
+        title: "Bảo hiểm & Chứng từ",
+        duration: "30 phút",
+        completed: false,
+        description: "ICC(A)/(C), B/L, AWB và chứng từ hải quan",
+        theory: `**Bảo hiểm bắt buộc theo Incoterm:**
+- **CIF:** Seller mua minimum ICC(C) — buyer nên nâng cấp
+- **CIP:** Seller mua minimum ICC(A) all-risk
+- **Các điều khoản khác:** Tự thỏa thuận
+
+**Chứng từ chính:**
+- Commercial Invoice, Packing List
+- B/L (biển) / AWB (air) / CMR (đường bộ)
+- Certificate of Origin, Export/Import declaration
+- Insurance Certificate (CIF/CIP)
+- Phytosanitary, COA tùy hàng hóa
+
+**FOB/CIF xuất khẩu VN:** Form B/E CO, tờ khai HQ, B/L On Board.`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "bar",
+      },
+      {
+        id: "incoterms-selection",
+        title: "Chọn Incoterm phù hợp",
+        duration: "35 phút",
+        completed: false,
+        description: "Framework quyết định theo vai trò buyer/seller",
+        theory: `**Decision Framework:**
+
+1. **Phương thức vận tải?** Sea only → FOB/CFR/CIF. Container/Air → FCA/CPT/CIP
+2. **Ai kiểm soát freight?** Buyer → F/FOB. Seller → C/D
+3. **Ai mua bảo hiểm?** Seller minimum → CIF/CIP. Buyer → FOB/CFR/CPT
+4. **Ai lo import?** Buyer → DAP/DPU. Seller → DDP
+5. **Mức dịch vụ seller?** Minimal EXW → Maximum DDP
+
+**Xuất khẩu VN điển hình:**
+- Nguyên liệu FOB/CIF cảng VN
+- Thành phẩm DAP/DDP EU/US nếu seller có logistics reverse`,
+        knowledgeRefs: ["incoterms-2020"],
+        experiment: {
+          type: "input",
+          label: "Công cụ tư vấn Incoterms",
+          description: "Nhập bối cảnh giao dịch và nhận gợi ý",
+          toolId: "incoterms",
+        },
+      },
+      {
+        id: "incoterms-mistakes",
+        title: "Sai lầm & Case Study",
+        duration: "40 phút",
+        completed: false,
+        description: "10 lỗi phổ biến và tình huống thực tế",
+        theory: `**10 sai lầm thường gặp:**
+
+1. FOB cho container giao tại depot (phải FCA)
+2. Tưởng CIF = seller chịu rủi ro đến cảng đích
+3. Không ghi named place/port
+4. Dùng Incoterms 2010 trong hợp đồng mới
+5. EXW cho buyer không có kinh nghiệm xuất khẩu
+6. DDP khi seller không thể làm importer of record
+7. Không nâng cấp insurance ICC(C) của CIF
+8. Nhầm DAP với DDP (import clearance)
+9. FAS cho container hàng
+10. Không đồng bộ Incoterm với điều khoản thanh toán L/C
+
+**Case:** Xưởng VN bán máy móc CIF Hamburg — rủi ro chuyển on board Sài Gòn, seller trả freight + insurance minimum, buyer lo import tại DE.`,
+        knowledgeRefs: ["incoterms-2020"],
+        chartType: "pie",
       },
     ],
   },

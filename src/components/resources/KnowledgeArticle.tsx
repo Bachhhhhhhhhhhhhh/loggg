@@ -15,6 +15,7 @@ const categoryColor: Record<string, string> = {
   "Tồn kho": "#8B5CF6",
   "Kho bãi": "#F59E0B",
   "Vận tải": "#EF4444",
+  "Thương mại QT": "#0EA5E9",
   "Machine Learning": "#22C55E",
   "Thư viện": "#6B7280",
 };

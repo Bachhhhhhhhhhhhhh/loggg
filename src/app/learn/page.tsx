@@ -3,7 +3,7 @@
 import type { ElementType } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { BookOpen, BarChart3, Network, Package, Warehouse, Brain } from "lucide-react";
+import { BookOpen, BarChart3, Network, Package, Warehouse, Brain, Globe } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ const iconMap: Record<string, ElementType> = {
   Package,
   Warehouse,
   Brain,
+  Globe,
 };
 
 export default function LearnPage() {

@@ -8,7 +8,7 @@ export interface KnowledgeEntry {
   id: string;
   title: string;
   subtitle: string;
-  category: "Phân tích" | "Tối ưu hóa" | "Tồn kho" | "Kho bãi" | "Vận tải" | "Machine Learning" | "Thư viện";
+  category: "Phân tích" | "Tối ưu hóa" | "Tồn kho" | "Kho bãi" | "Vận tải" | "Thương mại QT" | "Machine Learning" | "Thư viện";
   language: string;
   summary: string;
   overview: string;
@@ -411,6 +411,78 @@ forecast = model.predict(future)`,
       "Khi xây KPI dashboard, map mỗi metric về 1 trong 5 thuộc tính SCOR. Bullwhip effect giảm bằng information sharing (POS data) và vendor-managed inventory (VMI).",
     relatedModuleIds: ["abc-analysis", "linear-programming", "inventory-management", "warehouse-logistics", "machine-learning"],
     relatedToolIds: ["eoq", "abc", "inventory", "cost"],
+  },
+  {
+    id: "incoterms-2020",
+    title: "Incoterms® 2020 — Đầy đủ 11 điều khoản",
+    subtitle: "EXW · FCA · FAS · FOB · CFR · CIF · CPT · CIP · DAP · DPU · DDP",
+    category: "Thương mại QT",
+    language: "Quốc tế (ICC)",
+    summary:
+      "Bộ quy tắc thương mại quốc tế ICC gồm 11 điều khoản, 4 nhóm E/F/C/D — xác định nghĩa vụ giao hàng, chuyển rủi ro, phân bổ chi phí và chứng từ.",
+    overview:
+      "Incoterms® 2020 (International Commercial Terms) do Phòng Thương mại Quốc tế (ICC) ban hành, áp dụng từ 1/1/2020. Mỗi điều khoản quy định 10 nghĩa vụ người bán (A1-A10) và 10 nghĩa vụ người mua (B1-B10). LogIQ tích hợp đầy đủ 11 điều khoản với ma trận so sánh, công cụ tư vấn và 8 bài học chuyên sâu.",
+    scientificBasis:
+      "Dựa trên ICC Publication No. 723 Incoterms® 2020. Nguyên tắc 'two critical points' ở nhóm C: điểm chuyển rủi ro (thường sớm) khác điểm chuyển chi phí (đến đích). Phân loại theo mức độ dịch vụ: E (tối thiểu) → F → C → D (tối đa).",
+    keyConcepts: [
+      "11 điều khoản Incoterms 2020",
+      "4 nhóm: E (EXW), F (FCA/FAS/FOB), C (CFR/CIF/CPT/CIP), D (DAP/DPU/DDP)",
+      "Two critical points — Risk vs Cost transfer",
+      "Sea-only: FAS, FOB, CFR, CIF",
+      "All modes: EXW, FCA, CPT, CIP, DAP, DPU, DDP",
+      "FCA thay FOB cho container/multimodal",
+      "CIP yêu cầu ICC(A); CIF yêu cầu ICC(C) minimum",
+      "DPU = DAT thay thế (seller unloading)",
+      "DDP = seller cleared import",
+    ],
+    applications: [
+      "Soạn hợp đồng mua bán quốc tế (Sales Contract)",
+      "Đàm phán giá FOB/CIF/DDP với nhà cung cấp",
+      "Thiết kế L/C (Letter of Credit) đúng điều khoản",
+      "Tính Landed Cost và duty cho DDP",
+      "Chọn điều khoản phù hợp multimodal/container",
+    ],
+    methods: [
+      "Ma trận 11×8 obligation comparison",
+      "Decision tree: transport mode → insurance → import",
+      "Risk-cost timeline visualization",
+      "Case study: VN exporter → EU/US buyer",
+    ],
+    formulas: [
+      {
+        name: "Landed Cost (DDP basis)",
+        expression: "LC = Product + Freight + Insurance + Duty + VAT + Local delivery",
+        variables: "Seller phải quote trọn DDP nếu chọn điều khoản DDP",
+      },
+      {
+        name: "CIF Insurance minimum",
+        expression: "Cover ≥ 110% × CIF invoice value",
+        variables: "ICC(C) minimum cho seller theo CIF",
+      },
+      {
+        name: "CIP Insurance minimum",
+        expression: "Cover ≥ 110% × CIP invoice value, ICC(A)",
+        variables: "All-risk minimum cho CIP",
+      },
+    ],
+    pythonStack: ["pandas", "openpyxl"],
+    implementationNotes:
+      "Luôn ghi đủ: Incoterm + named place/port. Ví dụ: 'FOB Ho Chi Minh City, Incoterms® 2020'. Không dùng Incoterms cho quyền sở hữu hay thanh toán — chỉ giao hàng. Container tại depot: FCA không phải FOB.",
+    relatedModuleIds: ["incoterms-trade", "warehouse-logistics"],
+    relatedToolIds: ["incoterms"],
+    codeExample: `# Incoterm selector logic
+INCOTERMS_2020 = {
+    'E': ['EXW'],
+    'F': ['FCA', 'FAS', 'FOB'],
+    'C': ['CFR', 'CIF', 'CPT', 'CIP'],
+    'D': ['DAP', 'DPU', 'DDP'],
+}
+SEA_ONLY = {'FAS', 'FOB', 'CFR', 'CIF'}
+
+def validate_incoterm(code, mode='sea'):
+    if mode == 'multimodal' and code in SEA_ONLY:
+        return 'FCA/CPT/CIP recommended'
+    return 'OK'`,
   },
 ];
 

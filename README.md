@@ -72,7 +72,8 @@ npm run build
 - 5 module học tập với code Python
 - Công cụ: EOQ, Inventory Simulator, ABC Analysis, Cost Simulator
 - Lộ trình học 5 giai đoạn
-- **Thư viện tri thức** — 8 chủ đề khoa học tích hợp (ABC, EOQ, LP, WMS, TMS, OR-Tools, Prophet, SCOR)
+- **Incoterms® 2020** — Đầy đủ 11 điều khoản ICC + ma trận + công cụ tư vấn + 8 bài học
+- **Thư viện tri thức** — 9 chủ đề khoa học tích hợp
 - Dark theme kiểu nền tảng chứng khoán
 
 ## Chạy local (development)

@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { MarketTicker } from "./MarketTicker";
 import { getAllLessons } from "@/data/modules";
 import { knowledgeBase } from "@/data/knowledge-base";
+import { incoterms } from "@/data/incoterms";
 import { getCompletionStats } from "@/lib/progress";
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/roadmap", label: "Lộ trình học" },
   { href: "/learn", label: "Học tập" },
   { href: "/tools", label: "Công cụ" },
+  { href: "/incoterms", label: "Incoterms" },
   { href: "/resources", label: "Tri thức" },
   { href: "/about", label: "Về tác giả" },
 ];
@@ -57,7 +59,7 @@ function SearchDropdown({
   onNavigate?: () => void;
 }) {
   const results = useMemo(() => {
-    if (query.length <= 1) return { lessons: [], knowledge: [] };
+    if (query.length <= 1) return { lessons: [], knowledge: [], incotermResults: [] };
     const lower = query.toLowerCase();
     const lessons = getAllLessons()
       .filter(
@@ -74,10 +76,18 @@ function SearchDropdown({
           k.category.toLowerCase().includes(lower)
       )
       .slice(0, 4);
-    return { lessons, knowledge };
+    const incotermResults = incoterms
+      .filter(
+        (t) =>
+          t.code.toLowerCase().includes(lower) ||
+          t.fullName.toLowerCase().includes(lower) ||
+          t.summary.toLowerCase().includes(lower)
+      )
+      .slice(0, 4);
+    return { lessons, knowledge, incotermResults };
   }, [query]);
 
-  if (!open || (results.lessons.length === 0 && results.knowledge.length === 0)) {
+  if (!open || (results.lessons.length === 0 && results.knowledge.length === 0 && results.incotermResults.length === 0)) {
     return null;
   }
 
@@ -115,6 +125,24 @@ function SearchDropdown({
             >
               <p className="text-xs text-slate-200 font-medium">{k.title}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">{k.category}</p>
+            </Link>
+          ))}
+        </>
+      )}
+      {results.incotermResults.length > 0 && (
+        <>
+          <div className="px-3 py-2 border-b border-slate-800/60">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Incoterms</p>
+          </div>
+          {results.incotermResults.map((t) => (
+            <Link
+              key={t.code}
+              href={`/incoterms/${t.code.toLowerCase()}/`}
+              onClick={onNavigate}
+              className="block px-3 py-2.5 hover:bg-slate-800/60 transition-colors border-b border-slate-800/30 last:border-0"
+            >
+              <p className="text-xs text-slate-200 font-medium font-mono">{t.code} — {t.fullName}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Nhóm {t.group}</p>
             </Link>
           ))}
         </>

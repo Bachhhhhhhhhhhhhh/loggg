@@ -77,4 +77,17 @@ export const phases: Phase[] = [
     skills: ["Demand Forecasting", "Anomaly Detection", "Optimization ML"],
     color: "#EF4444",
   },
+  {
+    id: "trade",
+    number: 6,
+    title: "Thương mại Quốc tế",
+    subtitle: "Incoterms® 2020",
+    description:
+      "Nắm vững 11 điều khoản ICC: rủi ro, chi phí, bảo hiểm, chứng từ và chọn điều khoản phù hợp cho xuất nhập khẩu.",
+    lessons: 8,
+    duration: "2 tuần",
+    progress: 0,
+    skills: ["Incoterms 2020", "FOB/CIF/DDP", "Risk Transfer", "Trade Documents"],
+    color: "#0EA5E9",
+  },
 ];
