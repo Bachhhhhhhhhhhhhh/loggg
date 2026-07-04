@@ -11,14 +11,18 @@ Nền tảng học **Logistics & Supply Chain Management** — thiết kế theo
 
 ## Chạy dự án (Windows)
 
-### Cách 1 — Script tự động (khuyến nghị)
+### Cách 1 — Double-click (dễ nhất)
+
+Double-click file **`start.bat`** trong thư mục dự án.
+
+### Cách 2 — PowerShell
 
 ```powershell
 cd C:\Users\user\logiq
 .\start.ps1
 ```
 
-### Cách 2 — Thủ công
+### Cách 3 — Thủ công
 
 ```powershell
 cd C:\Users\user\logiq
@@ -28,8 +32,13 @@ npm run dev
 
 Mở trình duyệt: **http://localhost:3000**
 
-> Nếu port 3000 bị chiếm, dừng server cũ:
-> `taskkill /F /IM node.exe` rồi chạy lại `npm run dev`
+### Lỗi thường gặp
+
+| Lỗi | Cách sửa |
+|-----|----------|
+| `EADDRINUSE port 3000` | Chạy `npm run dev:stop` hoặc `start.bat` (tự dừng port cũ) |
+| Trang trắng / không load | Đảm bảo đã chạy `npm install` |
+| `Another next dev server` | Chạy `start.bat` — script tự xóa lock file |
 
 ## Build production
 
