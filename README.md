@@ -58,4 +58,28 @@ npm start
 - 5 module học tập với code Python
 - Công cụ: EOQ, Inventory Simulator, ABC Analysis, Cost Simulator
 - Lộ trình học 5 giai đoạn
+- **Thư viện tri thức** — 8 chủ đề khoa học tích hợp (ABC, EOQ, LP, WMS, TMS, OR-Tools, Prophet, SCOR)
 - Dark theme kiểu nền tảng chứng khoán
+
+## Xem web trên máy bạn
+
+GitHub chỉ lưu **mã nguồn**, không tự chạy website. Để xem giao diện LogIQ:
+
+```powershell
+cd C:\Users\user\logiq
+.\start.bat
+```
+
+Mở **http://localhost:3000** → menu **Tri thức** (`/resources`)
+
+## Cấu trúc tri thức tích hợp
+
+| File | Mô tả |
+|------|--------|
+| `src/data/knowledge-base.ts` | 8 chủ đề: lý thuyết, công thức, code Python |
+| `src/app/resources/` | Thư viện tri thức + trang chi tiết từng chủ đề |
+| `src/data/modules.ts` | Bài học liên kết nội bộ qua `knowledgeRefs` |
+
+## Repo
+
+https://github.com/Bachhhhhhhhhhhhhh/loggg
