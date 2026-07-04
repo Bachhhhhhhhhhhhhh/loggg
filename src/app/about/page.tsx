@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { GitBranch, BookOpen, Target, Heart, User } from "lucide-react";
+import { BookOpen, Target, Heart, User } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { githubRepos } from "@/data/resources";
+import { knowledgeBase } from "@/data/knowledge-base";
 
 export default function AboutPage() {
   return (
@@ -47,14 +47,14 @@ export default function AboutPage() {
                 học tập hiện có hoặc quá học thuật, hoặc thiếu tính thực hành.
               </p>
               <p>
-                <strong className="text-slate-100">LogIQ</strong> được xây dựng để lấp đầy khoảng trống đó —
-                một nền tảng học tập kết hợp lý thuyết tiếng Việt dễ hiểu, code Python thực hành,
-                công cụ tương tác, và tài nguyên open-source chất lượng cao.
+                <strong className="text-slate-100">LogIQ</strong> tích hợp toàn bộ kiến thức từ
+                các framework và phương pháp chuẩn ngành trực tiếp trên nền tảng — lý thuyết
+                tiếng Việt, công thức khoa học, code Python, công cụ mô phỏng, không cần tra cứu
+                nguồn bên ngoài.
               </p>
               <p>
-                Giao diện được thiết kế theo phong cách dashboard phân tích chuyên nghiệp (giống
-                các nền tảng tài chính) để tạo cảm giác nghiêm túc, data-driven — phù hợp với
-                bản chất của ngành Logistics.
+                Giao diện dashboard phân tích chuyên nghiệp tạo môi trường học nghiêm túc,
+                data-driven — phù hợp bản chất ngành Logistics.
               </p>
             </CardContent>
           </Card>
@@ -69,8 +69,8 @@ export default function AboutPage() {
             <CardContent className="text-sm text-slate-300 leading-relaxed">
               <p>
                 &ldquo;Học Logistics & Supply Chain một cách chuyên nghiệp và thực tiễn&rdquo; —
-                Đào tạo thế hệ chuyên gia chuỗi cung ứng có khả năng phân tích dữ liệu,
-                áp dụng công nghệ, và giải quyết bài toán thực tế.
+                Đào tạo chuyên gia chuỗi cung ứng có khả năng phân tích dữ liệu, áp dụng công nghệ,
+                và giải quyết bài toán thực tế bằng phương pháp khoa học.
               </p>
             </CardContent>
           </Card>
@@ -80,28 +80,24 @@ export default function AboutPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-slate-400" />
-            Nguồn tham khảo chính
+            <BookOpen className="h-4 w-4 text-slate-400" />
+            Cơ sở tri thức tích hợp
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {githubRepos.slice(0, 6).map((repo) => (
-              <a
-                key={repo.id}
-                href={repo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-800/50 transition-colors border border-slate-800 hover:border-slate-700"
+            {knowledgeBase.map((entry) => (
+              <Link
+                key={entry.id}
+                href={`/resources/${entry.id}`}
+                className="p-3 rounded-lg hover:bg-slate-800/50 transition-colors border border-slate-800 hover:border-slate-700"
               >
-                <GitBranch className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm text-blue-400 font-medium">
-                    {repo.owner}/{repo.name}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{repo.description}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="secondary" className="text-[9px]">{entry.category}</Badge>
                 </div>
-              </a>
+                <p className="text-sm text-slate-200 font-medium">{entry.title}</p>
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{entry.summary}</p>
+              </Link>
             ))}
           </div>
           <Link
@@ -109,7 +105,7 @@ export default function AboutPage() {
             className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline mt-4"
           >
             <BookOpen className="h-3 w-3" />
-            Xem tất cả tài nguyên →
+            Xem Thư viện tri thức đầy đủ →
           </Link>
         </CardContent>
       </Card>

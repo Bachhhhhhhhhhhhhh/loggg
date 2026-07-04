@@ -5,7 +5,7 @@ const footerLinks = [
   { href: "/learn", label: "Học tập", icon: BookOpen },
   { href: "/tools", label: "Công cụ", icon: Wrench },
   { href: "/roadmap", label: "Lộ trình", icon: TrendingUp },
-  { href: "/resources", label: "Tài nguyên", icon: Database },
+  { href: "/resources", label: "Tri thức", icon: Database },
 ];
 
 export function Footer() {

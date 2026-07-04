@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, FlaskConical, Clock, CheckCircle2 } from "lucide-react";
+import { FlaskConical, Clock, CheckCircle2, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeBlock } from "./CodeBlock";
 import { CostBreakdownChart, GenericBarChart, GenericLineChart } from "@/components/charts/ChartComponents";
 import type { Lesson } from "@/data/modules";
+import { getKnowledgeEntry } from "@/data/knowledge-base";
 
 interface LessonContentProps {
   lesson: Lesson;
@@ -193,16 +194,32 @@ export function LessonContent({ lesson, moduleTitle, prevLesson, nextLesson }: L
             </Card>
           )}
 
-          {lesson.githubUrl && (
-            <a
-              href={lesson.githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 h-9 rounded-lg px-4 text-xs border border-slate-700/60 bg-slate-900/50 hover:bg-slate-800/60 hover:border-slate-600 text-slate-300 transition-all"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Xem GitHub repo gốc
-            </a>
+          {lesson.knowledgeRefs && lesson.knowledgeRefs.length > 0 && (
+            <Card className="border-blue-500/20 bg-blue-500/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 normal-case text-sm">
+                  <BookOpen className="h-4 w-4 text-blue-400" />
+                  Kiến thức khoa học liên quan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {lesson.knowledgeRefs.map((refId) => {
+                  const entry = getKnowledgeEntry(refId);
+                  if (!entry) return null;
+                  return (
+                    <Link
+                      key={refId}
+                      href={`/resources/${refId}`}
+                      className="block p-3 rounded-lg border border-slate-800 hover:border-blue-500/30 hover:bg-slate-800/30 transition-all"
+                    >
+                      <p className="text-sm font-medium text-slate-200">{entry.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{entry.subtitle}</p>
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{entry.summary}</p>
+                    </Link>
+                  );
+                })}
+              </CardContent>
+            </Card>
           )}
 
           <div className="flex justify-between items-center pt-6 border-t border-slate-800/60 gap-4">

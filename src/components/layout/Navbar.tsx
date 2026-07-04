@@ -15,7 +15,7 @@ const navItems = [
   { href: "/roadmap", label: "Lộ trình học" },
   { href: "/learn", label: "Học tập" },
   { href: "/tools", label: "Công cụ" },
-  { href: "/resources", label: "Tài nguyên" },
+  { href: "/resources", label: "Tri thức" },
   { href: "/about", label: "Về tác giả" },
 ];
 

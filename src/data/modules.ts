@@ -6,7 +6,7 @@ export interface Lesson {
   theory: string;
   description: string;
   pythonCode?: string;
-  githubUrl?: string;
+  knowledgeRefs?: string[];
   chartType?: "line" | "bar" | "pie" | "area";
   experiment?: {
     type: "slider" | "input" | "table";
@@ -75,7 +75,7 @@ data = {
 df = pd.DataFrame(data)
 result = abc_analysis(df)
 print(result[['sku', 'annual_value', 'abc_class']])`,
-        githubUrl: "https://github.com/PacktPublishing/Supply-Chain-Analytics-with-Python",
+        knowledgeRefs: ["supply-chain-analytics-python"],
         chartType: "pie",
         experiment: {
           type: "table",
@@ -105,7 +105,7 @@ def plot_pareto(df, value_col='annual_value'):
     ax2.axhline(y=80, color='#22C55E', linestyle='--', label='80% threshold')
     plt.title('Pareto Chart - ABC Analysis')
     plt.show()`,
-        githubUrl: "https://github.com/PacktPublishing/Supply-Chain-Analytics-with-Python",
+        knowledgeRefs: ["supply-chain-analytics-python"],
         chartType: "bar",
       },
       {
@@ -118,7 +118,10 @@ def plot_pareto(df, value_col='annual_value'):
 
 - **Nhóm A:** Kiểm kê hàng tuần, dự báo nhu cầu chính xác, safety stock thấp, nhà cung cấp chiến lược.
 - **Nhóm B:** Kiểm kê hàng tháng, EOQ chuẩn, đánh giá nhà cung cấp định kỳ.
-- **Nhóm C:** Kiểm kê hàng quý, đặt hàng số lượng lớn, chấp nhận stockout risk cao hơn.`,
+- **Nhóm C:** Kiểm kê hàng quý, đặt hàng số lượng lớn, chấp nhận stockout risk cao hơn.
+
+**Nguyên tắc khoa học:** Tần suất kiểm kê tỷ lệ nghịch với ABC class. Chi phí quản lý nhóm A cao nhưng chi phí stockout cũng cao nhất — cần cân bằng theo Total Cost of Ownership (TCO).`,
+        knowledgeRefs: ["supply-chain-analytics-python", "awesome-supply-chain"],
         chartType: "area",
       },
     ],
@@ -159,7 +162,7 @@ b_eq = [100, 150, 80, 120, 50]
 result = linprog(c, A_eq=A_eq, b_eq=b_eq, method='highs')
 print(f"Chi phí tối thiểu: {result.fun}")
 print(f"Phương án vận chuyển: {result.x}")`,
-        githubUrl: "https://github.com/juanpablorivas/python-supply-chain-analytics",
+        knowledgeRefs: ["python-supply-chain-optimization", "scipy-optimize"],
         chartType: "bar",
       },
       {
@@ -190,7 +193,7 @@ model += pulp.lpSum([50000 * open_wh[w] for w in warehouses]) + \\
 
 model.solve()
 print(f"Status: {pulp.LpStatus[model.status]}")`,
-        githubUrl: "https://github.com/juanpablorivas/python-supply-chain-analytics",
+        knowledgeRefs: ["python-supply-chain-optimization", "google-or-tools"],
         chartType: "line",
       },
     ],
@@ -238,7 +241,7 @@ def eoq_model(D, S, H):
 result = eoq_model(10000, 50, 2)
 print(f"EOQ: {result['EOQ']} units")
 print(f"Tổng chi phí: {result['total_cost']:,} VND")`,
-        githubUrl: "https://github.com/PacktPublishing/Supply-Chain-Analytics-with-Python",
+        knowledgeRefs: ["supply-chain-analytics-python", "scipy-optimize"],
         chartType: "line",
         experiment: {
           type: "slider",
@@ -257,7 +260,10 @@ print(f"Tổng chi phí: {result['total_cost']:,} VND")`,
 **ROP = (Demand × Lead Time) + Safety Stock**
 **Safety Stock = Z × σ × √(Lead Time)**
 
-Z là hệ số service level (95% → Z=1.65, 99% → Z=2.33)`,
+Z là hệ số service level (95% → Z=1.65, 99% → Z=2.33)
+
+**Cơ sở khoa học:** Mô hình giả định nhu cầu và lead time tuân theo phân phối chuẩn. Với service level 95%, chỉ 5% khả năng stockout trong chu kỳ tái đặt hàng.`,
+        knowledgeRefs: ["supply-chain-analytics-python"],
         pythonCode: `from scipy import stats
 
 def safety_stock(demand_std, lead_time, service_level=0.95):
@@ -296,7 +302,7 @@ def inventory_simulation(days=365, initial_stock=1000,
         stock_levels.append(stock)
     
     return stock_levels`,
-        githubUrl: "https://github.com/PacktPublishing/Supply-Chain-Analytics-with-Python",
+        knowledgeRefs: ["supply-chain-analytics-python"],
         chartType: "line",
         experiment: {
           type: "slider",
@@ -324,8 +330,10 @@ def inventory_simulation(days=365, initial_stock=1000,
 - **Slotting optimization:** Sắp xếp vị trí hàng hóa tối ưu
 - **Wave planning:** Nhóm đơn hàng để picking hiệu quả
 - **Inventory tracking:** Theo dõi real-time
-- **Labor management:** Phân công và đo hiệu suất`,
-        githubUrl: "https://github.com/openboxes/openboxes",
+- **Labor management:** Phân công và đo hiệu suất
+
+**Kiến trúc WMS:** Hệ thống 4 lớp — Presentation (UI/API) → Business Logic (rules engine) → Data Access (inventory DB) → Integration (ERP, TMS). Inventory accuracy target ≥99.5% theo chuẩn ngành.`,
+        knowledgeRefs: ["openboxes-wms"],
         chartType: "bar",
       },
       {
@@ -334,8 +342,16 @@ def inventory_simulation(days=365, initial_stock=1000,
         duration: "30 phút",
         completed: false,
         description: "Triển khai TMS với Fleetbase open-source",
-        theory: `Fleetbase là nền tảng logistics open-source cung cấp TMS (Transportation Management System) đầy đủ: quản lý đội xe, tối ưu tuyến đường, tracking real-time, và quản lý đơn hàng vận chuyển.`,
-        githubUrl: "https://github.com/fleetbase/fleetbase",
+        theory: `TMS (Transportation Management System) quản lý toàn bộ hoạt động vận tải trong chuỗi cung ứng.
+
+**Chức năng cốt lõi:**
+- **Quản lý đội xe (Fleet Management):** Theo dõi capacity, maintenance schedule, driver assignment
+- **Tối ưu tuyến (Route Optimization):** Giải bài toán VRP — Vehicle Routing Problem
+- **Tracking real-time:** GPS telematics, ETA prediction, geofencing
+- **Freight costing:** Tính chi phí theo km, kg, zone, fuel surcharge
+
+**Cơ sở khoa học:** VRP là bài toán NP-hard. Với n điểm giao, số permutation là n! — cần thuật toán heuristic (savings algorithm, tabu search) hoặc OR-Tools cho bài toán >20 nodes.`,
+        knowledgeRefs: ["fleetbase-tms", "google-or-tools"],
         chartType: "line",
       },
       {
@@ -344,8 +360,16 @@ def inventory_simulation(days=365, initial_stock=1000,
         duration: "30 phút",
         completed: false,
         description: "Triển khai OpenBoxes cho quản lý kho",
-        theory: `OpenBoxes là giải pháp quản lý kho và inventory miễn phí, phù hợp cho healthcare, NGO, và doanh nghiệp vừa. Hỗ trợ multi-location, lot tracking, expiry management.`,
-        githubUrl: "https://github.com/openboxes/openboxes",
+        theory: `Hệ thống quản lý kho hiện đại cần hỗ trợ multi-location, lot tracking và expiry management.
+
+**Tính năng nâng cao:**
+- **Multi-location:** Quản lý tồn kho xuyên suốt nhiều kho, transfer orders
+- **Lot/Batch tracking:** Truy xuất nguồn gốc (traceability) — bắt buộc trong pharma, F&B
+- **Expiry management:** FEFO (First Expired, First Out) thay vì FIFO thông thường
+- **Cold chain:** Giám sát nhiệt độ kho lạnh, alert khi vượt ngưỡng
+
+**Ứng dụng:** Healthcare (vaccine, thuốc), NGO (relief supplies), retail multi-store.`,
+        knowledgeRefs: ["openboxes-wms"],
         chartType: "pie",
       },
     ],
@@ -384,7 +408,7 @@ def create_features(df):
 # Train và predict
 model = GradientBoostingRegressor(n_estimators=100)
 # model.fit(X_train, y_train)`,
-        githubUrl: "https://github.com/PacktPublishing/Supply-Chain-Analytics-with-Python",
+        knowledgeRefs: ["prophet-forecasting", "supply-chain-analytics-python"],
         chartType: "line",
       },
       {
@@ -393,7 +417,10 @@ model = GradientBoostingRegressor(n_estimators=100)
         duration: "30 phút",
         completed: false,
         description: "Anomaly detection trong chuỗi cung ứng",
-        theory: `Phát hiện bất thường (Anomaly Detection) giúp identify các sự kiện bất thường trong supply chain: đơn hàng fraud, delay bất thường, spike nhu cầu, quality issues.`,
+        theory: `Phát hiện bất thường (Anomaly Detection) giúp identify các sự kiện bất thường trong supply chain: đơn hàng fraud, delay bất thường, spike nhu cầu, quality issues.
+
+**Phương pháp:** Isolation Forest phân ly outlier bằng cách random partitioning — outlier cần ít split hơn để bị cô lập. Contamination parameter (thường 0.01-0.05) xác định tỷ lệ anomaly kỳ vọng.`,
+        knowledgeRefs: ["supply-chain-analytics-python"],
         pythonCode: `from sklearn.ensemble import IsolationForest
 
 def detect_anomalies(data, contamination=0.05):
