@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { KnowledgeArticle } from "@/components/resources/KnowledgeArticle";
-import { knowledgeBase, getKnowledgeEntry } from "@/data/knowledge-base";
+import { knowledgeBase, getKnowledgeEntry } from "@/data/knowledge";
 
 export function generateStaticParams() {
   return knowledgeBase.map((k) => ({ id: k.id }));
@@ -18,7 +18,7 @@ export default async function KnowledgeDetailPage({
   if (!entry) notFound();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
+    <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
       <Link
         href="/resources"
         className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-blue-400 transition-colors"
