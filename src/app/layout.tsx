@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CommandPaletteProvider } from "@/components/layout/CommandPaletteContext";
+import { ScrollProgress } from "@/components/layout/ScrollProgress";
 import "./globals.css";
 
 const inter = Inter({
@@ -54,8 +55,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${inter.variable} ${jetbrains.variable} dark h-full antialiased`}>
-      <body className="min-h-full flex flex-col terminal-bg text-slate-200">
+      <body className="min-h-full flex flex-col terminal-bg text-slate-200 selection:bg-blue-500/30">
         <CommandPaletteProvider>
+          <ScrollProgress />
           <Navbar />
           <main className="flex-1 relative z-[1]">{children}</main>
           <Footer />

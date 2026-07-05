@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calculator, Package, BarChart3, DollarSign, Globe } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SectionHeader } from "@/components/layout/SectionHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { EOQCalculator } from "@/components/tools/EOQCalculator";
@@ -80,10 +81,19 @@ function ToolsPageContent() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
       <PageHeader
+        variant="hero"
+        eyebrow="Interactive Suite"
         title="Công cụ tương tác"
         subtitle="INTERACTIVE TOOLS — Phân tích & mô phỏng Supply Chain"
         badge="5 TOOLS"
         icon={<Calculator className="h-5 w-5" />}
+      />
+
+      <SectionHeader
+        eyebrow="Chọn công cụ"
+        title="Bộ công cụ SCM"
+        description="EOQ, mô phỏng tồn kho, ABC, chi phí chuỗi cung ứng và Incoterms."
+        className="mb-2"
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -99,8 +109,8 @@ function ToolsPageContent() {
               className={cn(
                 "text-left p-4 rounded-xl border transition-all duration-300 card-accent",
                 isActive
-                  ? "border-blue-500/30 bg-blue-500/5 glow-blue"
-                  : "border-slate-800/60 bg-slate-900/40 hover:border-slate-700"
+                  ? "pro-surface border-blue-500/30 bg-blue-500/5 glow-blue"
+                  : "pro-surface pro-surface-hover"
               )}
               style={{ "--accent-color": tool.color } as CSSProperties}
             >

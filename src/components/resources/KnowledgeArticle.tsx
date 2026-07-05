@@ -53,7 +53,7 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
     return (
       <Link href={`/resources/${entry.id}`}>
         <Card
-          className="card-accent hover:border-slate-600 transition-all h-full group"
+          className="card-accent pro-surface-hover transition-all h-full group"
           style={
             { "--accent-color": categoryColor[entry.category] || "#3B82F6" } as CSSProperties
           }
@@ -120,23 +120,23 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      <nav className="hidden lg:block w-48 shrink-0">
-        <div className="sticky top-24 space-y-1">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Mục lục</p>
-          {toc.map((item) => (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              className="block text-[11px] text-slate-500 hover:text-blue-400 py-1 transition-colors"
-            >
-              {item.label}
-            </a>
-          ))}
+      <nav className="hidden lg:block w-52 shrink-0">
+        <div className="sticky top-28 pro-surface rounded-xl p-4">
+          <p className="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-semibold mb-3">
+            Mục lục
+          </p>
+          <div className="pro-article-toc space-y-0.5">
+            {toc.map((item) => (
+              <a key={item.id} href={`#${item.id}`}>
+                {item.label}
+              </a>
+            ))}
+          </div>
         </div>
       </nav>
 
       <div className="flex-1 min-w-0 space-y-6">
-        <div id="overview">
+        <div id="overview" className="pro-page-header pb-6">
           <div className="flex flex-wrap gap-2 mb-3">
             <Badge style={{ borderColor: categoryColor[entry.category] }}>{entry.category}</Badge>
             <Badge variant={difficultyVariant[entry.difficulty] ?? "default"}>
@@ -154,8 +154,10 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
               </Badge>
             )}
           </div>
-          <h1 className="text-2xl font-bold text-slate-50">{entry.title}</h1>
-          <p className="text-sm text-teal-400 mt-1">{entry.subtitle}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-50 tracking-tight text-balance">
+            {entry.title}
+          </h1>
+          <p className="text-sm text-teal-400/90 mt-2 font-mono tracking-wide">{entry.subtitle}</p>
           <p className="text-sm text-slate-400 mt-3 leading-relaxed">{entry.summary}</p>
           {entry.tags && entry.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">

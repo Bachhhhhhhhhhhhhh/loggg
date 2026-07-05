@@ -280,7 +280,7 @@ export function CommandPaletteTrigger({
     >
       <Search className="h-3.5 w-3.5" />
       <span>Tìm kiếm...</span>
-      <kbd className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[9px] font-mono">
+      <kbd className="pro-kbd ml-2 gap-0.5">
         <Command className="h-2.5 w-2.5" />K
       </kbd>
     </button>

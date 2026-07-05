@@ -344,6 +344,173 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .lesson-prose ul { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
 .lesson-prose li { margin: 0.25rem 0; color: #94a3b8; }
 
+/* ── Pro / Enterprise surfaces ── */
+.pro-surface {
+  background: linear-gradient(165deg, #0c1220f0 0%, #080d16e8 50%, #0a101cf0 100%);
+  border: 1px solid #1e293b55;
+  box-shadow:
+    0 1px 0 #ffffff06 inset,
+    0 4px 24px #00000035,
+    0 0 0 1px #00000020;
+  backdrop-filter: blur(20px) saturate(1.15);
+}
+
+.pro-surface-hover:hover {
+  border-color: #33415580;
+  box-shadow:
+    0 1px 0 #ffffff08 inset,
+    0 12px 40px #00000045,
+    0 0 0 1px #3b82f610;
+}
+
+.pro-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(145deg, #0f172a88 0%, #080d1488 100%);
+  border: 1px solid #1e293b50;
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+}
+
+.pro-stat:hover {
+  border-color: color-mix(in srgb, var(--stat-accent, #3b82f6) 35%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px #00000030;
+}
+
+.pro-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid #1e293b45;
+  background:
+    radial-gradient(ellipse 120% 80% at 0% -20%, #3b82f610, transparent 50%),
+    radial-gradient(ellipse 80% 60% at 100% 0%, #14b8a60c, transparent 45%),
+    linear-gradient(180deg, #0a0f18f5 0%, #060a12fa 100%);
+  box-shadow: 0 24px 80px #00000050, inset 0 1px 0 #ffffff06;
+}
+
+.pro-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(#1e293b18 1px, transparent 1px),
+    linear-gradient(90deg, #1e293b18 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black, transparent);
+  pointer-events: none;
+}
+
+.pro-nav-link {
+  position: relative;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-radius: 0.5rem;
+  transition: color 0.2s, background 0.2s;
+}
+
+.pro-nav-link-active {
+  color: #93c5fd;
+  background: linear-gradient(180deg, #3b82f618 0%, #3b82f608 100%);
+  box-shadow: inset 0 1px 0 #3b82f620, 0 0 0 1px #3b82f625;
+}
+
+.pro-page-header {
+  position: relative;
+  padding-bottom: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.pro-page-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #33415560, #3b82f640, #33415560, transparent);
+}
+
+.pro-filter-pill {
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  border: 1px solid #1e293b60;
+  background: #0a0f1680;
+  color: #64748b;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pro-filter-pill:hover {
+  border-color: #334155;
+  color: #94a3b8;
+  background: #0f172a90;
+}
+
+.pro-filter-pill-active {
+  color: #93c5fd;
+  border-color: #3b82f640;
+  background: linear-gradient(180deg, #3b82f620 0%, #3b82f60a 100%);
+  box-shadow: 0 0 20px #3b82f612, inset 0 1px 0 #3b82f615;
+}
+
+.pro-article-toc a {
+  display: block;
+  padding: 0.375rem 0.625rem;
+  margin-left: -0.625rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  color: #64748b;
+  border-left: 2px solid transparent;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.pro-article-toc a:hover {
+  color: #93c5fd;
+  background: #3b82f608;
+  border-left-color: #3b82f640;
+}
+
+.pro-input {
+  background: #0a0f16cc !important;
+  border-color: #1e293b70 !important;
+  box-shadow: inset 0 1px 2px #00000030;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pro-input:focus {
+  border-color: #3b82f650 !important;
+  box-shadow: 0 0 0 3px #3b82f615, inset 0 1px 2px #00000030;
+}
+
+.pro-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  font-family: var(--font-mono);
+  color: #64748b;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.25rem;
+  box-shadow: 0 1px 0 #00000040;
+}
+
+/* Typography refinement */
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
 /* ── Focus ring ── */
 :focus-visible {
   outline: 2px solid #3b82f680;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { BookOpen, BarChart3, Network, Package, Warehouse, Brain, Globe } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SectionHeader } from "@/components/layout/SectionHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -26,11 +27,20 @@ export default function LearnPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
       <PageHeader
+        variant="hero"
+        eyebrow="Learning Path"
         title="Học tập"
         subtitle={`${modules.length} MODULE · ${totalLessons} BÀI HỌC · ${completedLessons} HOÀN THÀNH`}
         badge={`${percent}%`}
         badgeVariant="teal"
         icon={<BookOpen className="h-5 w-5" />}
+      />
+
+      <SectionHeader
+        eyebrow="Curriculum"
+        title="Module học tập"
+        description="Lý thuyết tiếng Việt kèm code Python thực hành — theo dõi tiến độ từng module."
+        className="mb-2"
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -46,7 +56,7 @@ export default function LearnPage() {
               transition={{ delay: i * 0.08 }}
             >
               <Link href={`/learn/${mod.id}/${mod.lessons[0].id}`}>
-                <Card className="hover:border-slate-600 transition-all h-full group">
+                <Card className="pro-surface-hover transition-all h-full group">
                   <CardContent className="p-5">
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 shrink-0 group-hover:bg-blue-500/20 transition-colors">

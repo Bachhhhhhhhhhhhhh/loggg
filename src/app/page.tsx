@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   BookOpen,
-  BarChart3,
   Zap,
   Target,
   Layers,
@@ -19,6 +18,8 @@ import {
   Brain,
   TrendingUp,
 } from "lucide-react";
+import { SectionHeader } from "@/components/layout/SectionHeader";
+import { StatPill } from "@/components/ui/StatPill";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MarketWatchTable } from "@/components/dashboard/MarketWatchTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,7 @@ const bentoFeatures = [
     desc: "ABC, EOQ, WMS, Incoterms, Forecast...",
     icon: Database,
     color: "#8b5cf6",
-    badge: "32 topics",
+    badge: `${knowledgeStats.topics} topics`,
     span: "",
     large: false,
   },
@@ -114,13 +115,12 @@ export default function HomePage() {
       <motion.section
         {...fadeUp}
         transition={{ duration: 0.6 }}
-        className="relative overflow-hidden rounded-3xl border border-slate-800/60"
+        className="pro-hero"
       >
         <div className="hero-orb w-72 h-72 bg-blue-500/20 -top-20 -left-20" style={{ animationDelay: "0s" }} />
         <div className="hero-orb w-56 h-56 bg-teal-500/15 top-10 right-10" style={{ animationDelay: "2s" }} />
         <div className="hero-orb w-40 h-40 bg-violet-500/15 bottom-0 left-1/3" style={{ animationDelay: "4s" }} />
 
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-900/80 to-slate-950/90" />
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
 
@@ -177,10 +177,14 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + i * 0.08 }}
-                className="text-center sm:text-left"
               >
-                <p className="text-2xl sm:text-3xl font-bold text-slate-100 font-mono">{s.label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{s.sub}</p>
+                <StatPill
+                  icon={s.icon}
+                  label={s.sub}
+                  value={s.label}
+                  color="text-slate-100"
+                  accent={["#3b82f6", "#14b8a6", "#f59e0b", "#8b5cf6"][i]}
+                />
               </motion.div>
             ))}
           </div>
@@ -189,12 +193,13 @@ export default function HomePage() {
 
       {/* ── BENTO GRID ── */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-            Khám phá nền tảng
-          </h2>
-          <Badge variant="secondary" className="text-[10px]">Bento layout</Badge>
-        </div>
+        <SectionHeader
+          eyebrow="Platform"
+          title="Khám phá nền tảng"
+          description="Notebook AI, tri thức chuyên sâu, công cụ mô phỏng và lộ trình học tập."
+          action={<Badge variant="secondary" className="text-[10px]">Bento layout</Badge>}
+          className="mb-4"
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-[minmax(140px,auto)]">
           {bentoFeatures.map((f, i) => (
             <motion.div
@@ -255,13 +260,18 @@ export default function HomePage() {
 
       {/* ── KPI DASHBOARD ── */}
       <section>
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="h-4 w-4 text-blue-400" />
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-            Market Overview
-          </h2>
-          <Badge variant="success" className="text-[9px] ml-auto">LIVE DEMO</Badge>
-        </div>
+        <SectionHeader
+          eyebrow="Dashboard"
+          title="Market Overview"
+          description="KPI supply chain mô phỏng theo phong cách terminal tài chính."
+          action={
+            <Badge variant="success" className="text-[9px] gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 pulse-live" />
+              LIVE DEMO
+            </Badge>
+          }
+          className="mb-4"
+        />
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {dashboardKPIs.map((kpi, i) => (

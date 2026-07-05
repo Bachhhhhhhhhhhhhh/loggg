@@ -77,15 +77,16 @@ export function Navbar() {
         )}
       >
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex h-14 items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow">
+          <div className="flex h-16 items-center justify-between gap-4">
+            <Link href="/" className="flex items-center gap-3 shrink-0 group">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 shadow-lg shadow-blue-500/30 ring-1 ring-white/10 group-hover:shadow-blue-500/50 group-hover:scale-[1.02] transition-all">
                 <TrendingUp className="h-4 w-4 text-white" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-slate-950 pulse-live" />
               </div>
               <div className="hidden sm:block">
-                <span className="text-base font-bold gradient-text">LogIQ</span>
-                <p className="text-[10px] text-slate-600 leading-none font-mono">
-                  Logistics Intelligence
+                <span className="text-base font-bold gradient-text tracking-tight">LogIQ</span>
+                <p className="text-[10px] text-slate-600 leading-none font-mono tracking-wider">
+                  LOGISTICS INTELLIGENCE
                 </p>
               </div>
             </Link>
@@ -100,9 +101,9 @@ export function Navbar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "relative px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200",
+                      "pro-nav-link",
                       isActive
-                        ? "text-blue-400 bg-blue-500/10"
+                        ? "pro-nav-link-active"
                         : "highlight" in item && item.highlight
                           ? "text-teal-400/90 hover:text-teal-300 hover:bg-teal-500/10"
                           : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/50"
@@ -112,9 +113,6 @@ export function Navbar() {
                       <BookMarked className="inline h-3 w-3 mr-1 -mt-0.5" />
                     )}
                     {item.label}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-blue-500 rounded-full" />
-                    )}
                   </Link>
                 );
               })}
@@ -125,7 +123,7 @@ export function Navbar() {
 
               <CommandPaletteTrigger onClick={() => setCommandOpen(true)} />
 
-              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800/60">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl pro-surface">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-teal-500/20 border border-slate-700">
                   <User className="h-3 w-3 text-slate-400" />
                 </div>
