@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from "./types";
 const DB_NAME = "logiq-notebooks";
 const DB_VERSION = 1;
 const NOTEBOOKS_STORE = "notebooks";
-const SETTINGS_KEY = "settings";
+const SETTINGS_KEY = "logiq-notebook-settings";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -24,8 +24,7 @@ export async function listNotebooks(): Promise<Notebook[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(NOTEBOOKS_STORE, "readonly");
-    const store = tx.objectStore(NOTEBOOKS_STORE);
-    const request = store.getAll();
+    const request = tx.objectStore(NOTEBOOKS_STORE).getAll();
     request.onsuccess = () => {
       const notebooks = (request.result as Notebook[]).sort(
         (a, b) => b.updatedAt - a.updatedAt
@@ -52,7 +51,18 @@ export async function saveNotebook(notebook: Notebook): Promise<void> {
     const tx = db.transaction(NOTEBOOKS_STORE, "readwrite");
     tx.objectStore(NOTEBOOKS_STORE).put(notebook);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => {
+      const err = tx.error;
+      if (err?.name === "QuotaExceededError") {
+        reject(
+          new Error(
+            "Bộ nhớ trình duyệt đầy — xóa bớt tài liệu hoặc notebook cũ."
+          )
+        );
+      } else {
+        reject(err);
+      }
+    };
   });
 }
 
@@ -69,14 +79,23 @@ export async function deleteNotebook(id: string): Promise<void> {
 export function getSettings(): NotebookSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS;
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem("settings");
     if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    parsed.geminiApiKey = String(parsed.geminiApiKey ?? "").trim();
+    if (parsed.geminiApiKey.length > 10) parsed.useAi = true;
+    return parsed;
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
 
 export function saveSettings(settings: NotebookSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  const normalized: NotebookSettings = {
+    ...settings,
+    geminiApiKey: settings.geminiApiKey.trim(),
+    useAi: settings.geminiApiKey.trim().length > 10 ? true : settings.useAi,
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
+  localStorage.removeItem("settings");
 }

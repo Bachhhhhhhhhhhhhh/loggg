@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { ChatMessage, NotebookSource } from "@/lib/notebook/types";
 import { sendMessage, getSuggestedQuestions } from "@/lib/notebook/chat";
+import { getSettings } from "@/lib/notebook/storage";
+import { isAiReady } from "@/lib/notebook/ai";
 
 interface NotebookChatProps {
   sources: NotebookSource[];
@@ -47,6 +49,8 @@ export function NotebookChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasSources = sources.some((s) => s.enabled && s.chunks.length > 0);
   const suggestions = getSuggestedQuestions();
+  const settings = getSettings();
+  const aiActive = isAiReady(settings.geminiApiKey, settings.useAi);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,8 +87,8 @@ export function NotebookChat({
           <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
             Hỏi đáp từ tài liệu
           </h2>
-          <Badge variant="teal" className="text-[9px] ml-auto">
-            NotebookLM-style
+          <Badge variant={aiActive ? "success" : "teal"} className="text-[9px] ml-auto">
+            {aiActive ? "Gemini AI" : "Trích xuất"}
           </Badge>
         </div>
         <p className="text-[10px] text-slate-600 mt-0.5">

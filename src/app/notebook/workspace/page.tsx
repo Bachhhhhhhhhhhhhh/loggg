@@ -13,8 +13,9 @@ import { SourcePreviewModal } from "@/components/notebook/SourcePreviewModal";
 import { NotebookSettingsDialog } from "@/components/notebook/NotebookSettingsDialog";
 import { getNotebook, saveNotebook } from "@/lib/notebook/storage";
 import { generateInsights } from "@/lib/notebook/insights";
-import { generateAiInsights } from "@/lib/notebook/ai";
+import { generateAiInsights, isAiReady } from "@/lib/notebook/ai";
 import { getSettings } from "@/lib/notebook/storage";
+import { createId } from "@/lib/notebook/id";
 import type { ChatMessage, Notebook, NotebookSource } from "@/lib/notebook/types";
 
 function WorkspaceContent() {
@@ -58,11 +59,15 @@ function WorkspaceContent() {
   }
 
   const handleUpload = async (source: NotebookSource) => {
-    const updated = {
-      ...notebook,
-      sources: [...notebook.sources, source],
-    };
-    await persist(updated);
+    try {
+      const updated = {
+        ...notebook,
+        sources: [...notebook.sources, source],
+      };
+      await persist(updated);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Lỗi lưu tài liệu");
+    }
   };
 
   const handleToggle = async (id: string) => {
@@ -100,17 +105,36 @@ function WorkspaceContent() {
     try {
       let insights = generateInsights(notebook.sources);
       const settings = getSettings();
-      if (settings.useAi && settings.geminiApiKey) {
+      const enabledSources = notebook.sources.filter((s) => s.enabled);
+
+      if (isAiReady(settings.geminiApiKey, settings.useAi)) {
         try {
-          const fullText = notebook.sources
-            .filter((s) => s.enabled)
-            .map((s) => s.text)
-            .join("\n\n");
-          const ai = await generateAiInsights(settings.geminiApiKey, fullText);
+          const fullText = enabledSources.map((s) => s.text).join("\n\n");
+          const ai = await generateAiInsights(
+            settings.geminiApiKey,
+            fullText,
+            enabledSources.map((s) => s.name)
+          );
           if (ai.summary) insights = { ...insights, summary: ai.summary };
           if (ai.outline.length) insights = { ...insights, outline: ai.outline };
-        } catch {
-          /* keep extractive insights */
+          if (ai.keyTopics.length) insights = { ...insights, keyTopics: ai.keyTopics };
+          if (ai.flashcards.length) {
+            insights = {
+              ...insights,
+              flashcards: ai.flashcards.map((f) => ({
+                id: createId("fc"),
+                front: f.front,
+                back: f.back,
+              })),
+            };
+          }
+        } catch (e) {
+          insights = {
+            ...insights,
+            summary:
+              insights.summary +
+              `\n\n(Gemini lỗi: ${e instanceof Error ? e.message : "unknown"} — dùng bản trích xuất)`,
+          };
         }
       }
       await persist({ ...notebook, insights });

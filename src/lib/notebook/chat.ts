@@ -1,7 +1,11 @@
 import type { ChatMessage, NotebookSource } from "./types";
 import { createId } from "./id";
-import { retrieveChunks, toCitations } from "./retrieval";
-import { askGemini } from "./ai";
+import {
+  retrieveChunks,
+  toCitations,
+  buildContextFromChunks,
+} from "./retrieval";
+import { askGemini, isAiReady } from "./ai";
 import { getSettings } from "./storage";
 
 const SUGGESTED_QUESTIONS = [
@@ -20,11 +24,11 @@ function buildExtractiveAnswer(
   query: string,
   sources: NotebookSource[]
 ): { content: string; citations: ReturnType<typeof toCitations> } {
-  const results = retrieveChunks(query, sources, 5);
+  const results = retrieveChunks(query, sources, 6);
   if (!results.length) {
     return {
       content:
-        "Không tìm thấy thông tin liên quan trong tài liệu đã upload. Hãy thử đổi câu hỏi hoặc bật thêm nguồn tài liệu.",
+        "Không tìm thấy nội dung trong tài liệu đã upload. Hãy kiểm tra file đã được xử lý thành công (có chunks) và nguồn đang bật.",
       citations: [],
     };
   }
@@ -34,22 +38,23 @@ function buildExtractiveAnswer(
 
   if (isSummary) {
     const bullets = results.map(
-      (r, i) => `**${i + 1}.** ${r.chunk.text.slice(0, 280)}${r.chunk.text.length > 280 ? "…" : ""}`
+      (r, i) =>
+        `**${i + 1}.** (${r.source.name}) ${r.chunk.text.slice(0, 300)}${r.chunk.text.length > 300 ? "…" : ""}`
     );
     return {
-      content: `Dựa trên ${results.length} đoạn liên quan trong tài liệu:\n\n${bullets.join("\n\n")}`,
+      content: `Tóm tắt từ ${results.length} đoạn trong tài liệu:\n\n${bullets.join("\n\n")}`,
       citations,
     };
   }
 
   const primary = results[0];
   const supporting = results.slice(1, 3);
-  let answer = `Theo **${primary.source.name}**:\n\n${primary.chunk.text}`;
+  let answer = `Theo **${primary.source.name}** [1]:\n\n${primary.chunk.text}`;
 
   if (supporting.length) {
-    answer += "\n\n**Thông tin bổ sung:**\n";
+    answer += "\n\n**Bổ sung:**\n";
     supporting.forEach((s, i) => {
-      answer += `\n- ${s.chunk.text.slice(0, 180)}…`;
+      answer += `\n- [${i + 2}] ${s.chunk.text.slice(0, 200)}…`;
     });
   }
 
@@ -62,32 +67,37 @@ export async function sendMessage(
   history: ChatMessage[]
 ): Promise<ChatMessage> {
   const settings = getSettings();
-  const results = retrieveChunks(query, sources, 6);
+  const results = retrieveChunks(query, sources, 8);
   const citations = toCitations(results);
+  const context = buildContextFromChunks(results);
 
   let content: string;
+  let aiError: string | null = null;
 
-  if (settings.useAi && settings.geminiApiKey && results.length > 0) {
+  if (isAiReady(settings.geminiApiKey, settings.useAi)) {
     try {
-      const context = results
-        .map(
-          (r, i) =>
-            `[${i + 1}] (${r.source.name}): ${r.chunk.text}`
-        )
-        .join("\n\n");
+      if (!context.trim()) {
+        throw new Error("Không có ngữ cảnh từ tài liệu để gửi cho AI");
+      }
       content = await askGemini(
         settings.geminiApiKey,
         query,
         context,
-        history.slice(-4)
+        history
       );
-    } catch {
+    } catch (err) {
+      aiError = err instanceof Error ? err.message : "Lỗi AI không xác định";
       const fallback = buildExtractiveAnswer(query, sources);
-      content = fallback.content + "\n\n*(AI không khả dụng — hiển thị kết quả trích xuất từ tài liệu)*";
+      content = `${fallback.content}\n\n---\n⚠️ **Gemini lỗi:** ${aiError}`;
     }
   } else {
     const extractive = buildExtractiveAnswer(query, sources);
     content = extractive.content;
+    if (!settings.geminiApiKey.trim()) {
+      content += "\n\n💡 *Mẹo: Vào Cài đặt AI → dán Gemini API key để có câu trả lời thông minh hơn.*";
+    } else if (!settings.useAi) {
+      content += "\n\n💡 *Bật \"AI nâng cao\" trong Cài đặt AI để dùng Gemini.*";
+    }
   }
 
   return {

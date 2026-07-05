@@ -111,7 +111,7 @@ export function StudioPanel({ insights, loading, onGenerate }: StudioPanelProps)
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
               <Badge variant="teal" className="text-[9px] mb-2">
-                AI Summary
+                Tóm tắt tài liệu
               </Badge>
               <p className="text-sm text-slate-300 leading-relaxed">{insights.summary}</p>
             </div>
