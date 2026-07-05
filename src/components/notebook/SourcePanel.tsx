@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import type { NotebookSource } from "@/lib/notebook/types";
 import { SourceUploader } from "./SourceUploader";
+import { PasteTextSource } from "./PasteTextSource";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -22,7 +23,7 @@ function formatSize(bytes: number): string {
 interface SourcePanelProps {
   notebookId: string;
   sources: NotebookSource[];
-  onUpload: (source: NotebookSource) => void;
+  onUpload: (source: NotebookSource) => void | Promise<void>;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onPreview: (source: NotebookSource) => void;
@@ -51,11 +52,16 @@ export function SourcePanel({
         </p>
       </div>
 
-      <div className="p-3 border-b border-slate-800/40">
+      <div className="p-3 border-b border-slate-800/40 space-y-2">
         <SourceUploader
           notebookId={notebookId}
           currentCount={sources.length}
           onUploaded={onUpload}
+        />
+        <PasteTextSource
+          notebookId={notebookId}
+          onUploaded={onUpload}
+          disabled={sources.length >= 20}
         />
       </div>
 

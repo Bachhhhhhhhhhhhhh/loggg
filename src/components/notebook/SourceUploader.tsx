@@ -20,7 +20,7 @@ const ACCEPT_TYPES =
 interface SourceUploaderProps {
   notebookId: string;
   currentCount: number;
-  onUploaded: (source: NotebookSource) => void;
+  onUploaded: (source: NotebookSource) => void | Promise<void>;
 }
 
 export function SourceUploader({
@@ -74,8 +74,8 @@ export function SourceUploader({
             uploadedAt: Date.now(),
             chunks,
           };
-          onUploaded(source);
-          setSuccess(`✓ ${file.name} — ${chunks.length} chunks, ${pageCount ? `${pageCount} trang` : type}`);
+          await onUploaded(source);
+          setSuccess(`✓ ${file.name} — ${chunks.length} chunks${pageCount ? `, ${pageCount} trang` : ""}`);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Lỗi upload tài liệu");

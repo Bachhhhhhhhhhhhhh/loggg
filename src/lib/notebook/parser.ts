@@ -1,18 +1,21 @@
-import mammoth from "mammoth";
 import type { SourceType } from "./types";
 
-let pdfWorkerReady = false;
+let pdfModule: typeof import("pdfjs-dist/legacy/build/pdf.mjs") | null = null;
 
 function getBasePath(): string {
   if (typeof window === "undefined") return "";
-  return window.location.pathname.startsWith("/loggg") ? "/loggg" : "";
+  const path = window.location.pathname;
+  if (path.startsWith("/loggg")) return "/loggg";
+  return "";
 }
 
-async function ensurePdfWorker(): Promise<void> {
-  if (pdfWorkerReady || typeof window === "undefined") return;
+async function loadPdfJs() {
+  if (pdfModule) return pdfModule;
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = `${getBasePath()}/pdf.worker.min.mjs`;
-  pdfWorkerReady = true;
+  const base = getBasePath();
+  pdfjs.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.mjs`;
+  pdfModule = pdfjs;
+  return pdfjs;
 }
 
 export function getSourceType(filename: string): SourceType {
@@ -36,25 +39,38 @@ async function parsePdf(
   file: File,
   onProgress?: (p: ParseProgress) => void
 ): Promise<{ text: string; pageCount: number }> {
-  await ensurePdfWorker();
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjs = await loadPdfJs();
 
   onProgress?.({
     fileName: file.name,
     stage: "reading",
-    detail: "Đang đọc file PDF…",
+    detail: "Đang đọc PDF…",
   });
 
   const buffer = await file.arrayBuffer();
-  const doc = await pdfjs.getDocument({ data: buffer }).promise;
-  const pages: string[] = [];
 
-  for (let i = 1; i <= doc.numPages; i++) {
+  let doc;
+  try {
+    doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("worker") || msg.includes("Worker")) {
+      throw new Error(
+        `${file.name}: Lỗi PDF worker. Thử refresh trang (Ctrl+F5) hoặc dùng file TXT/DOCX.`
+      );
+    }
+    throw new Error(`${file.name}: Không mở được PDF — ${msg}`);
+  }
+
+  const pages: string[] = [];
+  const maxPages = Math.min(doc.numPages, 200);
+
+  for (let i = 1; i <= maxPages; i++) {
     onProgress?.({
       fileName: file.name,
       stage: "parsing",
-      percent: Math.round((i / doc.numPages) * 100),
-      detail: `Trang ${i}/${doc.numPages}`,
+      percent: Math.round((i / maxPages) * 100),
+      detail: `Trang ${i}/${maxPages}`,
     });
 
     const page = await doc.getPage(i);
@@ -70,7 +86,7 @@ async function parsePdf(
   const text = pages.join("\n\n");
   if (!text.trim()) {
     throw new Error(
-      `${file.name}: PDF không có text (có thể là file scan/ảnh). Hãy dùng PDF có text hoặc chuyển sang DOCX/TXT.`
+      `${file.name}: PDF không có chữ (file scan/ảnh). Hãy copy text vào "Dán văn bản" hoặc dùng DOCX/TXT.`
     );
   }
 
@@ -78,10 +94,11 @@ async function parsePdf(
 }
 
 async function parseDocx(file: File): Promise<string> {
+  const mammoth = await import("mammoth");
   const buffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer: buffer });
   if (!result.value.trim()) {
-    throw new Error(`${file.name}: file Word trống hoặc không đọc được.`);
+    throw new Error(`${file.name}: Word trống hoặc không đọc được.`);
   }
   return result.value;
 }
@@ -105,41 +122,43 @@ export async function parseFile(
 ): Promise<{ text: string; type: SourceType; pageCount?: number }> {
   const type = getSourceType(file.name);
   if (type === "unknown") {
-    throw new Error(
-      `Định dạng không hỗ trợ: ${file.name}. Dùng PDF, DOCX, TXT, MD hoặc CSV.`
-    );
+    throw new Error(`Không hỗ trợ ${file.name}. Dùng PDF, DOCX, TXT, MD, CSV.`);
   }
 
   onProgress?.({ fileName: file.name, stage: "parsing", detail: "Đang phân tích…" });
 
-  let result: { text: string; type: SourceType; pageCount?: number };
-
   switch (type) {
     case "pdf": {
       const { text, pageCount } = await parsePdf(file, onProgress);
-      result = { text, type, pageCount };
-      break;
+      onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+      return { text, type, pageCount };
     }
     case "docx": {
       const text = await parseDocx(file);
-      result = { text, type };
-      break;
+      onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+      return { text, type };
     }
     case "csv": {
       const raw = await parseText(file);
-      result = { text: parseCsv(raw), type };
-      break;
+      onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+      return { text: parseCsv(raw), type };
     }
     case "txt":
     case "md": {
       const text = await parseText(file);
-      result = { text, type };
-      break;
+      onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+      return { text, type };
     }
     default:
-      throw new Error(`Định dạng không hỗ trợ: ${file.name}`);
+      throw new Error(`Không hỗ trợ ${file.name}`);
   }
+}
 
-  onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
-  return result;
+/** Parse pasted plain text as a virtual document. */
+export function parsePastedText(title: string, raw: string): { text: string; type: SourceType } {
+  const text = raw.trim();
+  if (text.length < 20) {
+    throw new Error("Văn bản quá ngắn — cần ít nhất 20 ký tự.");
+  }
+  return { text, type: "txt" };
 }

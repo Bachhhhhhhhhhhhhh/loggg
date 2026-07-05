@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import type { ChatMessage, NotebookSource } from "@/lib/notebook/types";
+import type { ChatMessage, Notebook, NotebookSource } from "@/lib/notebook/types";
 import { sendMessage, getSuggestedQuestions } from "@/lib/notebook/chat";
 import { getSettings } from "@/lib/notebook/storage";
 import { isAiReady } from "@/lib/notebook/ai";
@@ -14,8 +14,8 @@ import { isAiReady } from "@/lib/notebook/ai";
 interface NotebookChatProps {
   sources: NotebookSource[];
   messages: ChatMessage[];
-  onNewMessage: (msg: ChatMessage) => void;
-  onUserMessage: (msg: ChatMessage) => void;
+  onUserMessage: (msg: ChatMessage) => Promise<Notebook | null>;
+  onNewMessage: (msg: ChatMessage) => Promise<void>;
 }
 
 function renderMarkdownLite(text: string): React.ReactNode[] {
@@ -41,8 +41,8 @@ function renderMarkdownLite(text: string): React.ReactNode[] {
 export function NotebookChat({
   sources,
   messages,
-  onNewMessage,
   onUserMessage,
+  onNewMessage,
 }: NotebookChatProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,22 +58,30 @@ export function NotebookChat({
 
   const handleSend = async (text: string) => {
     const query = text.trim();
-    if (!query || loading) return;
-    if (!hasSources) return;
+    if (!query || loading || !hasSources) return;
 
     const userMsg: ChatMessage = {
-      id: `user_${Date.now()}`,
+      id: createMsgId("user"),
       role: "user",
       content: query,
       createdAt: Date.now(),
     };
-    onUserMessage(userMsg);
+
     setInput("");
     setLoading(true);
 
     try {
-      const reply = await sendMessage(query, sources, [...messages, userMsg]);
-      onNewMessage(reply);
+      const updatedNotebook = await onUserMessage(userMsg);
+      const history = updatedNotebook?.messages ?? [...messages, userMsg];
+      const reply = await sendMessage(query, sources, history);
+      await onNewMessage(reply);
+    } catch {
+      await onNewMessage({
+        id: createMsgId("err"),
+        role: "assistant",
+        content: "⚠️ Lỗi xử lý câu hỏi — thử lại hoặc kiểm tra tài liệu đã upload.",
+        createdAt: Date.now(),
+      });
     } finally {
       setLoading(false);
     }
@@ -92,7 +100,9 @@ export function NotebookChat({
           </Badge>
         </div>
         <p className="text-[10px] text-slate-600 mt-0.5">
-          Đặt câu hỏi — trả lời kèm trích dẫn từ file đã upload
+          {hasSources
+            ? `${sources.filter((s) => s.enabled).length} nguồn · ${sources.reduce((n, s) => n + s.chunks.length, 0)} chunks`
+            : "Upload hoặc dán văn bản trước"}
         </p>
       </div>
 
@@ -101,9 +111,7 @@ export function NotebookChat({
           <div className="text-center py-6">
             <Bot className="h-12 w-12 mx-auto text-slate-700 mb-3" />
             <p className="text-sm text-slate-400 font-medium">
-              {hasSources
-                ? "Sẵn sàng học từ tài liệu của bạn"
-                : "Upload tài liệu để bắt đầu"}
+              {hasSources ? "Đặt câu hỏi về tài liệu" : "Chưa có tài liệu"}
             </p>
             {hasSources && (
               <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-lg mx-auto">
@@ -124,10 +132,7 @@ export function NotebookChat({
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={cn(
-              "flex gap-3",
-              msg.role === "user" ? "flex-row-reverse" : ""
-            )}
+            className={cn("flex gap-3", msg.role === "user" ? "flex-row-reverse" : "")}
           >
             <div
               className={cn(
@@ -137,11 +142,7 @@ export function NotebookChat({
                   : "bg-teal-500/20 text-teal-400"
               )}
             >
-              {msg.role === "user" ? (
-                <User className="h-4 w-4" />
-              ) : (
-                <Bot className="h-4 w-4" />
-              )}
+              {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
             </div>
             <div
               className={cn(
@@ -154,12 +155,10 @@ export function NotebookChat({
               <div className="whitespace-pre-wrap">{renderMarkdownLite(msg.content)}</div>
               {msg.citations && msg.citations.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-800/60 space-y-1.5">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                    Trích dẫn
-                  </p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Trích dẫn</p>
                   {msg.citations.map((c, i) => (
                     <div
-                      key={`${c.sourceId}-${c.chunkIndex}`}
+                      key={`${c.sourceId}-${c.chunkIndex}-${i}`}
                       className="text-[10px] text-slate-500 bg-slate-950/50 rounded px-2 py-1.5"
                     >
                       <span className="text-teal-400 font-mono">[{i + 1}]</span>{" "}
@@ -179,7 +178,9 @@ export function NotebookChat({
               <Loader2 className="h-4 w-4 text-teal-400 animate-spin" />
             </div>
             <div className="rounded-xl px-4 py-3 bg-slate-900/80 border border-slate-800/60">
-              <p className="text-xs text-slate-500">Đang phân tích tài liệu…</p>
+              <p className="text-xs text-slate-500">
+                {aiActive ? "Gemini đang phân tích…" : "Đang tìm trong tài liệu…"}
+              </p>
             </div>
           </div>
         )}
@@ -197,11 +198,7 @@ export function NotebookChat({
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              hasSources
-                ? "Hỏi về nội dung tài liệu…"
-                : "Upload tài liệu trước khi hỏi"
-            }
+            placeholder={hasSources ? "Hỏi về nội dung tài liệu…" : "Thêm tài liệu trước"}
             disabled={!hasSources || loading}
             className="flex-1 bg-slate-900/60 border-slate-800"
           />
@@ -212,4 +209,8 @@ export function NotebookChat({
       </div>
     </div>
   );
+}
+
+function createMsgId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }

@@ -28,7 +28,7 @@ function buildExtractiveAnswer(
   if (!results.length) {
     return {
       content:
-        "Không tìm thấy nội dung trong tài liệu đã upload. Hãy kiểm tra file đã được xử lý thành công (có chunks) và nguồn đang bật.",
+        "Không tìm thấy nội dung phù hợp. Kiểm tra: (1) tài liệu có chunks > 0, (2) nguồn đang bật, (3) thử 'Dán văn bản' nếu PDF lỗi.",
       citations: [],
     };
   }
@@ -42,21 +42,16 @@ function buildExtractiveAnswer(
         `**${i + 1}.** (${r.source.name}) ${r.chunk.text.slice(0, 300)}${r.chunk.text.length > 300 ? "…" : ""}`
     );
     return {
-      content: `Tóm tắt từ ${results.length} đoạn trong tài liệu:\n\n${bullets.join("\n\n")}`,
+      content: `Tóm tắt từ ${results.length} đoạn:\n\n${bullets.join("\n\n")}`,
       citations,
     };
   }
 
   const primary = results[0];
-  const supporting = results.slice(1, 3);
-  let answer = `Theo **${primary.source.name}** [1]:\n\n${primary.chunk.text}`;
-
-  if (supporting.length) {
-    answer += "\n\n**Bổ sung:**\n";
-    supporting.forEach((s, i) => {
-      answer += `\n- [${i + 2}] ${s.chunk.text.slice(0, 200)}…`;
-    });
-  }
+  let answer = `Theo **${primary.source.name}**:\n\n${primary.chunk.text}`;
+  results.slice(1, 3).forEach((s, i) => {
+    answer += `\n\n**Bổ sung [${i + 2}]:** ${s.chunk.text.slice(0, 200)}…`;
+  });
 
   return { content: answer, citations };
 }
@@ -72,31 +67,22 @@ export async function sendMessage(
   const context = buildContextFromChunks(results);
 
   let content: string;
-  let aiError: string | null = null;
 
   if (isAiReady(settings.geminiApiKey, settings.useAi)) {
     try {
       if (!context.trim()) {
-        throw new Error("Không có ngữ cảnh từ tài liệu để gửi cho AI");
+        throw new Error("Không có ngữ cảnh — upload/dán tài liệu trước");
       }
-      content = await askGemini(
-        settings.geminiApiKey,
-        query,
-        context,
-        history
-      );
+      content = await askGemini(settings.geminiApiKey, query, context, history);
     } catch (err) {
-      aiError = err instanceof Error ? err.message : "Lỗi AI không xác định";
+      const aiErr = err instanceof Error ? err.message : "Lỗi AI";
       const fallback = buildExtractiveAnswer(query, sources);
-      content = `${fallback.content}\n\n---\n⚠️ **Gemini lỗi:** ${aiError}`;
+      content = `${fallback.content}\n\n---\n⚠️ **Gemini:** ${aiErr}`;
     }
   } else {
-    const extractive = buildExtractiveAnswer(query, sources);
-    content = extractive.content;
-    if (!settings.geminiApiKey.trim()) {
-      content += "\n\n💡 *Mẹo: Vào Cài đặt AI → dán Gemini API key để có câu trả lời thông minh hơn.*";
-    } else if (!settings.useAi) {
-      content += "\n\n💡 *Bật \"AI nâng cao\" trong Cài đặt AI để dùng Gemini.*";
+    content = buildExtractiveAnswer(query, sources).content;
+    if (settings.geminiApiKey.length < 20) {
+      content += "\n\n💡 *Cài đặt AI → dán Gemini API key → Test kết nối → Lưu*";
     }
   }
 

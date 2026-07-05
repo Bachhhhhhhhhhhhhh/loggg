@@ -2,24 +2,46 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { ChatMessage } from "./types";
 
 const MODELS = [
+  "gemini-2.5-flash",
   "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
   "gemini-1.5-flash-latest",
   "gemini-1.5-flash",
 ] as const;
 
 function normalizeKey(apiKey: string): string {
-  return apiKey.trim();
+  return apiKey.trim().replace(/\s+/g, "");
+}
+
+function formatGeminiError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/API_KEY_INVALID|API key not valid|invalid api key/i.test(raw)) {
+    return "API key không hợp lệ — tạo key mới tại aistudio.google.com/apikey";
+  }
+  if (/403|PERMISSION_DENIED/i.test(raw)) {
+    return "API key bị từ chối — bật Generative Language API cho key này";
+  }
+  if (/429|RESOURCE_EXHAUSTED|quota/i.test(raw)) {
+    return "Vượt giới hạn Gemini — đợi 1 phút rồi thử lại";
+  }
+  if (/404|not found|NOT_FOUND/i.test(raw)) {
+    return "Model AI tạm không khả dụng — hệ thống sẽ thử model khác";
+  }
+  if (/Failed to fetch|NetworkError|network/i.test(raw)) {
+    return "Lỗi mạng — kiểm tra internet hoặc firewall";
+  }
+  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
 }
 
 function getClient(apiKey: string): GoogleGenerativeAI {
   const key = normalizeKey(apiKey);
-  if (!key) throw new Error("Chưa nhập Gemini API key");
+  if (key.length < 20) throw new Error("API key chưa hợp lệ (quá ngắn)");
   return new GoogleGenerativeAI(key);
 }
 
 async function generateText(apiKey: string, prompt: string): Promise<string> {
   const genAI = getClient(apiKey);
-  let lastError: Error | null = null;
+  const errors: string[] = [];
 
   for (const modelName of MODELS) {
     try {
@@ -35,23 +57,18 @@ async function generateText(apiKey: string, prompt: string): Promise<string> {
       if (!text?.trim()) throw new Error("AI trả về rỗng");
       return text.trim();
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      errors.push(`${modelName}: ${formatGeminiError(err)}`);
     }
   }
 
-  throw new Error(
-    lastError?.message?.includes("API_KEY")
-      ? "API key không hợp lệ — kiểm tra lại key tại aistudio.google.com"
-      : lastError?.message ?? "Không kết nối được Gemini API"
-  );
+  throw new Error(errors[errors.length - 1] ?? "Không kết nối được Gemini");
 }
 
 export async function testGeminiApi(apiKey: string): Promise<string> {
-  const text = await generateText(
+  return generateText(
     apiKey,
-    'Trả lời đúng 1 câu tiếng Việt: "LogIQ Notebook AI đã kết nối thành công."'
+    'Reply exactly: LogIQ Notebook AI connected successfully.'
   );
-  return text;
 }
 
 export async function askGemini(
@@ -61,26 +78,22 @@ export async function askGemini(
   history: ChatMessage[]
 ): Promise<string> {
   const historyText = history
-    .slice(-6)
-    .map((m) => `${m.role === "user" ? "Người dùng" : "Trợ lý"}: ${m.content}`)
+    .slice(-4)
+    .map((m) => `${m.role === "user" ? "User" : "AI"}: ${m.content.slice(0, 500)}`)
     .join("\n");
 
-  const prompt = `Bạn là trợ lý học tập Logistics & Supply Chain của LogIQ (giống NotebookLM).
+  const prompt = `Bạn là trợ lý học Logistics & SCM của LogIQ (kiểu NotebookLM).
+Trả lời TIẾNG VIỆT, ngắn gọn, có bullet nếu cần.
+CHỈ dùng NGỮ CẢNH bên dưới. Trích dẫn [1], [2]...
+Nếu không có trong tài liệu: "Tài liệu chưa đề cập."
 
-QUY TẮC:
-- Trả lời bằng tiếng Việt, rõ ràng, có cấu trúc (bullet hoặc đoạn ngắn).
-- CHỈ dùng thông tin từ NGỮ CẢNH TÀI LIỆU bên dưới.
-- Trích dẫn nguồn bằng [1], [2]... khớp với số thứ tự trong ngữ cảnh.
-- Nếu tài liệu không đủ thông tin, nói rõ "Tài liệu chưa đề cập đến…".
-- Không bịa đặt số liệu hoặc khái niệm không có trong tài liệu.
+NGỮ CẢNH:
+${context.slice(0, 28000)}
 
-NGỮ CẢNH TÀI LIỆU:
-${context}
+HỘI THOẠI:
+${historyText || "(mới)"}
 
-LỊCH SỬ HỘI THOẠI:
-${historyText || "(chưa có)"}
-
-CÂU HỎI: ${question}`;
+HỎI: ${question}`;
 
   return generateText(apiKey, prompt);
 }
@@ -95,23 +108,17 @@ export async function generateAiInsights(
   keyTopics: { topic: string; detail: string }[];
   flashcards: { front: string; back: string }[];
 }> {
-  const excerpt = fullText.slice(0, 24000);
-  const prompt = `Phân tích tài liệu logistics/supply chain từ ${sourceNames.length} file: ${sourceNames.join(", ")}.
+  const excerpt = fullText.slice(0, 20000);
+  const prompt = `Phân tích tài liệu logistics từ: ${sourceNames.join(", ")}.
+Trả JSON thuần (không markdown):
+{"summary":"4-6 câu tiếng Việt","outline":["mục1","mục2"],"keyTopics":[{"topic":"x","detail":"y"}],"flashcards":[{"front":"q","back":"a"}]}
 
-Trả về ĐÚNG JSON (không markdown, không giải thích thêm):
-{
-  "summary": "tóm tắt 4-6 câu tiếng Việt",
-  "outline": ["mục dàn ý 1", "mục 2", ...],
-  "keyTopics": [{"topic": "chủ đề", "detail": "mô tả ngắn"}],
-  "flashcards": [{"front": "câu hỏi/thuật ngữ", "back": "định nghĩa/giải thích"}]
-}
-
-TÀI LIỆU:
+NỘI DUNG:
 ${excerpt}`;
 
   const raw = await generateText(apiKey, prompt);
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("AI không trả về JSON hợp lệ");
+  if (!jsonMatch) throw new Error("AI không trả JSON — thử lại");
 
   const parsed = JSON.parse(jsonMatch[0]);
   return {
@@ -124,7 +131,7 @@ ${excerpt}`;
         }))
       : [],
     flashcards: Array.isArray(parsed.flashcards)
-      ? parsed.flashcards.map((f: { front?: string; back?: string }) => ({
+      ? parsed.flashcards.slice(0, 12).map((f: { front?: string; back?: string }) => ({
           front: String(f.front ?? ""),
           back: String(f.back ?? ""),
         }))
@@ -132,6 +139,8 @@ ${excerpt}`;
   };
 }
 
-export function isAiReady(apiKey: string, useAi: boolean): boolean {
-  return useAi && normalizeKey(apiKey).length > 10;
+export function isAiReady(apiKey: string, useAi?: boolean): boolean {
+  const key = normalizeKey(apiKey);
+  if (key.length < 20) return false;
+  return useAi !== false;
 }

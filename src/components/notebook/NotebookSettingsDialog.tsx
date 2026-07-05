@@ -43,7 +43,7 @@ export function NotebookSettingsDialog() {
     }
   };
 
-  const hasKey = settings.geminiApiKey.trim().length > 10;
+  const hasKey = settings.geminiApiKey.trim().length >= 20;
 
   return (
     <>
@@ -92,7 +92,7 @@ export function NotebookSettingsDialog() {
                     setSettings((s) => ({
                       ...s,
                       geminiApiKey: e.target.value,
-                      useAi: e.target.value.trim().length > 10,
+                      useAi: e.target.value.trim().length >= 20,
                     }));
                     setTestOk(null);
                     setTestError(null);

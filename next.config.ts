@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   trailingSlash: true,
+  transpilePackages: ["pdfjs-dist", "mammoth"],
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
+  },
   images: {
     unoptimized: true,
   },

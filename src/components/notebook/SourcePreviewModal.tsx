@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { NotebookSource } from "@/lib/notebook/types";
+import { getSourceText } from "@/lib/notebook/source-text";
 
 interface SourcePreviewModalProps {
   source: NotebookSource | null;
@@ -11,6 +12,8 @@ interface SourcePreviewModalProps {
 
 export function SourcePreviewModal({ source, onClose }: SourcePreviewModalProps) {
   if (!source) return null;
+
+  const text = getSourceText(source);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -29,8 +32,8 @@ export function SourcePreviewModal({ source, onClose }: SourcePreviewModalProps)
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           <pre className="text-xs text-slate-400 whitespace-pre-wrap font-sans leading-relaxed">
-            {source.text.slice(0, 15000)}
-            {source.text.length > 15000 && "\n\n… (đã cắt bớt để hiển thị)"}
+            {text.slice(0, 20000)}
+            {text.length > 20000 && "\n\n… (hiển thị 20.000 ký tự đầu)"}
           </pre>
         </div>
       </div>
