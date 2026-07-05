@@ -179,7 +179,9 @@ export function NotebookChat({
             </div>
             <div className="rounded-xl px-4 py-3 bg-slate-900/80 border border-slate-800/60">
               <p className="text-xs text-slate-500">
-                {aiActive ? "Gemini đang phân tích…" : "Đang tìm trong tài liệu…"}
+                {aiActive
+                  ? "Gemini đang học từ tài liệu và soạn câu trả lời…"
+                  : "Đang trích xuất từ tài liệu…"}
               </p>
             </div>
           </div>

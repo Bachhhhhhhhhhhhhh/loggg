@@ -100,7 +100,7 @@ export function NotebookSettingsDialog() {
                   className="bg-slate-950/60 border-slate-800 font-mono text-xs"
                 />
                 <p className="text-[10px] text-slate-600 mt-1.5">
-                  Lấy key miễn phí tại{" "}
+                  Lấy key tại{" "}
                   <a
                     href="https://aistudio.google.com/apikey"
                     target="_blank"
@@ -109,7 +109,7 @@ export function NotebookSettingsDialog() {
                   >
                     Google AI Studio
                   </a>
-                  . Key chỉ lưu trên trình duyệt của bạn.
+                  . AI dùng Gemini chat đa lượt + retrieval thông minh từ tài liệu.
                 </p>
               </div>
 

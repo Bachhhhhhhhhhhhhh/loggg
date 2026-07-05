@@ -23,7 +23,10 @@ import {
 } from "@/lib/notebook/storage";
 import { generateInsights } from "@/lib/notebook/insights";
 import { generateAiInsights, isAiReady } from "@/lib/notebook/ai";
-import { getSourcesCombinedText } from "@/lib/notebook/source-text";
+import {
+  sampleChunksPerSource,
+  buildContextFromChunks,
+} from "@/lib/notebook/retrieval";
 import { createId } from "@/lib/notebook/id";
 import type { ChatMessage, Notebook, NotebookSource } from "@/lib/notebook/types";
 
@@ -133,10 +136,12 @@ function WorkspaceContent() {
 
       if (isAiReady(settings.geminiApiKey, settings.useAi)) {
         try {
-          const fullText = getSourcesCombinedText(enabled);
+          const context = buildContextFromChunks(
+            sampleChunksPerSource(enabled, 5)
+          );
           const ai = await generateAiInsights(
             settings.geminiApiKey,
-            fullText,
+            context,
             enabled.map((s) => s.name)
           );
           if (ai.summary) insights = { ...insights, summary: ai.summary };
@@ -151,6 +156,21 @@ function WorkspaceContent() {
                 back: f.back,
               })),
             };
+          }
+          if (ai.quiz?.length) {
+            insights = {
+              ...insights,
+              quiz: ai.quiz.map((q) => ({
+                id: createId("quiz"),
+                question: q.question,
+                options: q.options.length >= 2 ? q.options : ["A", "B", "C", "D"],
+                correctIndex: Math.min(q.correctIndex, (q.options.length || 4) - 1),
+                explanation: q.explanation,
+              })),
+            };
+          }
+          if (ai.glossary?.length) {
+            insights = { ...insights, glossary: ai.glossary };
           }
         } catch (e) {
           insights = {

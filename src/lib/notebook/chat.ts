@@ -1,56 +1,61 @@
 import type { ChatMessage, NotebookSource } from "./types";
 import { createId } from "./id";
 import {
-  retrieveChunks,
+  retrieveForStudy,
   toCitations,
   buildContextFromChunks,
 } from "./retrieval";
 import { askGemini, isAiReady } from "./ai";
 import { getSettings } from "./storage";
+import { detectQueryIntent } from "./query-expand";
 
-const SUGGESTED_QUESTIONS = [
-  "Tóm tắt nội dung chính của tài liệu",
-  "Liệt kê các khái niệm quan trọng",
-  "Ứng dụng thực tiễn trong logistics?",
-  "So sánh các phương pháp được đề cập",
-  "Rủi ro và lưu ý cần biết?",
-];
+const SUGGESTED_BY_INTENT: Record<string, string[]> = {
+  default: [
+    "Tóm tắt nội dung chính của tài liệu",
+    "Liệt kê các khái niệm quan trọng",
+    "Ứng dụng thực tiễn trong logistics?",
+    "So sánh các phương pháp được đề cập",
+    "Rủi ro và lưu ý cần biết?",
+  ],
+};
 
 export function getSuggestedQuestions(): string[] {
-  return SUGGESTED_QUESTIONS;
+  return SUGGESTED_BY_INTENT.default;
 }
 
 function buildExtractiveAnswer(
   query: string,
   sources: NotebookSource[]
 ): { content: string; citations: ReturnType<typeof toCitations> } {
-  const results = retrieveChunks(query, sources, 6);
+  const results = retrieveForStudy(query, sources);
   if (!results.length) {
     return {
       content:
-        "Không tìm thấy nội dung phù hợp. Kiểm tra: (1) tài liệu có chunks > 0, (2) nguồn đang bật, (3) thử 'Dán văn bản' nếu PDF lỗi.",
+        "Không tìm thấy nội dung. Kiểm tra tài liệu đã upload (có chunks > 0) và nguồn đang bật.",
       citations: [],
     };
   }
 
   const citations = toCitations(results);
-  const isSummary = /tóm tắt|summary|tổng quan/i.test(query);
+  const intent = detectQueryIntent(query);
 
-  if (isSummary) {
-    const bullets = results.map(
-      (r, i) =>
-        `**${i + 1}.** (${r.source.name}) ${r.chunk.text.slice(0, 300)}${r.chunk.text.length > 300 ? "…" : ""}`
-    );
+  if (intent === "summary" || intent === "concepts") {
+    const bullets = results.map((r, i) => {
+      const excerpt = r.chunk.text.slice(0, 350);
+      return `**${i + 1}.** [${r.source.name}] ${excerpt}${r.chunk.text.length > 350 ? "…" : ""}`;
+    });
+    const title = intent === "summary" ? "Tóm tắt" : "Khái niệm chính";
     return {
-      content: `Tóm tắt từ ${results.length} đoạn:\n\n${bullets.join("\n\n")}`,
+      content: `**${title}** (${results.length} đoạn từ tài liệu):\n\n${bullets.join("\n\n")}`,
       citations,
     };
   }
 
   const primary = results[0];
-  let answer = `Theo **${primary.source.name}**:\n\n${primary.chunk.text}`;
-  results.slice(1, 3).forEach((s, i) => {
-    answer += `\n\n**Bổ sung [${i + 2}]:** ${s.chunk.text.slice(0, 200)}…`;
+  let answer = `**${primary.source.name}** [1]\n\n${primary.chunk.text}`;
+
+  results.slice(1, 4).forEach((s, i) => {
+    answer += `\n\n---\n**[${i + 2}] ${s.source.name}:**\n${s.chunk.text.slice(0, 300)}${s.chunk.text.length > 300 ? "…" : ""}`;
   });
 
   return { content: answer, citations };
@@ -62,7 +67,7 @@ export async function sendMessage(
   history: ChatMessage[]
 ): Promise<ChatMessage> {
   const settings = getSettings();
-  const results = retrieveChunks(query, sources, 8);
+  const results = retrieveForStudy(query, sources);
   const citations = toCitations(results);
   const context = buildContextFromChunks(results);
 
@@ -71,18 +76,24 @@ export async function sendMessage(
   if (isAiReady(settings.geminiApiKey, settings.useAi)) {
     try {
       if (!context.trim()) {
-        throw new Error("Không có ngữ cảnh — upload/dán tài liệu trước");
+        throw new Error("Chưa có ngữ cảnh — upload tài liệu trước");
       }
-      content = await askGemini(settings.geminiApiKey, query, context, history);
+      content = await askGemini(
+        settings.geminiApiKey,
+        query,
+        context,
+        history
+      );
     } catch (err) {
       const aiErr = err instanceof Error ? err.message : "Lỗi AI";
       const fallback = buildExtractiveAnswer(query, sources);
-      content = `${fallback.content}\n\n---\n⚠️ **Gemini:** ${aiErr}`;
+      content = `${fallback.content}\n\n---\n⚠️ *Gemini tạm lỗi: ${aiErr} — hiển thị bản trích xuất.*`;
     }
   } else {
     content = buildExtractiveAnswer(query, sources).content;
-    if (settings.geminiApiKey.length < 20) {
-      content += "\n\n💡 *Cài đặt AI → dán Gemini API key → Test kết nối → Lưu*";
+    if (!isAiReady(settings.geminiApiKey, settings.useAi)) {
+      content +=
+        "\n\n💡 *Bật Gemini: Cài đặt AI → dán API key → Test kết nối → Lưu*";
     }
   }
 
