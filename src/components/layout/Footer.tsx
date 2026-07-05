@@ -5,6 +5,7 @@ import { getCompletionStats } from "@/lib/progress";
 import { knowledgeStats } from "@/data/knowledge";
 
 const footerLinks = [
+  { href: "/ai", label: "Gemini Chat", icon: Sparkles },
   { href: "/notebook", label: "Notebook AI", icon: BookMarked },
   { href: "/learn", label: "Học tập", icon: BookOpen },
   { href: "/tools", label: "Công cụ", icon: Wrench },

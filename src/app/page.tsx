@@ -45,6 +45,17 @@ const fadeUp = {
 
 const bentoFeatures = [
   {
+    href: "/ai",
+    title: "Gemini Chat",
+    subtitle: "Hỏi đáp AI · Upload ảnh · Phân tích SCM",
+    desc: "Giao diện kiểu Gemini — chat thực tế, đính kèm hình ảnh, lịch sử hội thoại.",
+    icon: Sparkles,
+    color: "#6366f1",
+    badge: "NEW",
+    span: "lg:col-span-2",
+    large: true,
+  },
+  {
     href: "/notebook",
     title: "Notebook AI",
     subtitle: "Upload PDF · Chat thông minh · Studio",

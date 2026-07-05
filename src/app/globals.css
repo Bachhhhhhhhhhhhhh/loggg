@@ -511,6 +511,30 @@ h1, h2, h3 {
   text-wrap: balance;
 }
 
+/* ── Gemini Chat ── */
+.gemini-welcome-orb {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #14b8a6 50%, #8b5cf6 100%);
+  box-shadow: 0 0 40px #3b82f640, 0 0 80px #14b8a620;
+  animation: float 4s ease-in-out infinite;
+}
+
+.gemini-composer textarea::placeholder {
+  color: #475569;
+}
+
+.gemini-response pre {
+  background: #0a0f16;
+  border: 1px solid #1e293b;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+
 /* ── Focus ring ── */
 :focus-visible {
   outline: 2px solid #3b82f680;

@@ -14,7 +14,8 @@ import { getCompletionStats } from "@/lib/progress";
 
 const navItems = [
   { href: "/", label: "Tổng quan" },
-  { href: "/notebook", label: "Notebook", highlight: true },
+  { href: "/ai", label: "Gemini", highlight: true },
+  { href: "/notebook", label: "Notebook" },
   { href: "/roadmap", label: "Lộ trình học" },
   { href: "/learn", label: "Học tập" },
   { href: "/tools", label: "Công cụ" },

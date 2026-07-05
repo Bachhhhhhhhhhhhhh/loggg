@@ -13,6 +13,7 @@ import {
   User,
   ArrowRight,
   Command,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAllLessons } from "@/data/modules";
@@ -35,7 +36,8 @@ type ResultItem = {
 
 const quickLinks: ResultItem[] = [
   { id: "home", title: "Tổng quan", subtitle: "Dashboard logistics", href: "/", group: "Điều hướng", icon: TrendingUp },
-  { id: "notebook", title: "Notebook AI", subtitle: "Upload & chat thông minh", href: "/notebook", group: "Điều hướng", icon: BookMarked },
+  { id: "ai", title: "Gemini Chat", subtitle: "Hỏi đáp AI · Upload ảnh", href: "/ai", group: "Điều hướng", icon: Sparkles },
+  { id: "notebook", title: "Notebook AI", subtitle: "Upload tài liệu & RAG chat", href: "/notebook", group: "Điều hướng", icon: BookMarked },
   { id: "learn", title: "Học tập", subtitle: "Module & bài học", href: "/learn", group: "Điều hướng", icon: BookOpen },
   { id: "tools", title: "Công cụ", subtitle: "EOQ, ABC, Simulator", href: "/tools", group: "Điều hướng", icon: Zap },
   { id: "resources", title: "Tri thức", subtitle: "32 chủ đề chuyên sâu", href: "/resources", group: "Điều hướng", icon: Database },
