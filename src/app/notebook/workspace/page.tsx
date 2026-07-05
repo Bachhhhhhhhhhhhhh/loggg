@@ -53,6 +53,7 @@ function WorkspaceContent() {
       router.replace("/notebook");
       return;
     }
+    setLoading(true);
     getNotebook(notebookId).then((nb) => {
       if (!nb) {
         router.replace("/notebook");
@@ -63,18 +64,10 @@ function WorkspaceContent() {
     });
   }, [notebookId, router, applyLocal]);
 
-  if (loading || !notebook) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
-      </div>
-    );
-  }
-
   const runTraining = useCallback(
     async (auto = false) => {
-      const current = notebookRef.current!;
-      if (!current.sources.some((s) => s.enabled && s.chunks.length > 0)) return;
+      const current = notebookRef.current;
+      if (!current?.sources.some((s) => s.enabled && s.chunks.length > 0)) return;
 
       setInsightsLoading(true);
       setTrainingStatus(auto ? "AI đang học tài liệu mới…" : "Đang phân tích tài liệu…");
@@ -102,6 +95,14 @@ function WorkspaceContent() {
     },
     [applyLocal]
   );
+
+  if (loading || !notebook) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
 
   const handleUpload = async (source: NotebookSource) => {
     try {
