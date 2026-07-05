@@ -1,4 +1,4 @@
-export type SourceType = "pdf" | "docx" | "txt" | "md" | "csv" | "unknown";
+export type SourceType = "pdf" | "docx" | "txt" | "md" | "csv" | "json" | "html" | "unknown";
 
 export interface TextChunk {
   id: string;
@@ -71,6 +71,8 @@ export interface Notebook {
   sources: NotebookSource[];
   messages: ChatMessage[];
   insights: NotebookInsights | null;
+  /** Số tài liệu (khi list không load full sources) */
+  sourceCount?: number;
 }
 
 export interface NotebookSettings {
@@ -85,6 +87,20 @@ export const DEFAULT_SETTINGS: NotebookSettings = {
   chunkSize: 800,
 };
 
-export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv"] as const;
-export const MAX_FILE_SIZE_MB = 15;
-export const MAX_SOURCES_PER_NOTEBOOK = 20;
+export const SUPPORTED_EXTENSIONS = [
+  ".pdf",
+  ".docx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".html",
+  ".htm",
+] as const;
+
+/** Không giới hạn số file / dung lượng — chỉ bị giới hạn bởi RAM trình duyệt */
+export const UPLOAD_UNLIMITED = true;
+
+export function getNotebookSourceCount(nb: Notebook): number {
+  return nb.sourceCount ?? nb.sources.length;
+}

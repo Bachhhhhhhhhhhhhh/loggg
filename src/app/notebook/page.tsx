@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { createId } from "@/lib/notebook/id";
 import { listNotebooks, saveNotebook, deleteNotebook } from "@/lib/notebook/storage";
 import type { Notebook } from "@/lib/notebook/types";
+import { getNotebookSourceCount } from "@/lib/notebook/types";
 import { NotebookSettingsDialog } from "@/components/notebook/NotebookSettingsDialog";
 
 const EMOJIS = ["📦", "🚢", "📊", "🎓", "📋", "🌐", "⚡", "🔬"];
@@ -215,7 +216,7 @@ export default function NotebookHubPage() {
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     <Badge variant="secondary" className="text-[9px]">
                       <FileText className="h-2.5 w-2.5 mr-0.5" />
-                      {nb.sources.length} tài liệu
+                      {getNotebookSourceCount(nb)} tài liệu
                     </Badge>
                     <Badge variant="secondary" className="text-[9px]">
                       <MessageSquare className="h-2.5 w-2.5 mr-0.5" />

@@ -12,19 +12,24 @@ function getBasePath(): string {
 async function loadPdfJs() {
   if (pdfModule) return pdfModule;
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const base = getBasePath();
-  pdfjs.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.mjs`;
+  pdfjs.GlobalWorkerOptions.workerSrc = `${getBasePath()}/pdf.worker.min.mjs`;
   pdfModule = pdfjs;
   return pdfjs;
 }
 
-export function getSourceType(filename: string): SourceType {
+function yieldToMain(): Promise<void> {
+  return new Promise((r) => setTimeout(r, 0));
+}
+
+export function getSourceType(filename: string, mime = ""): SourceType {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
-  if (ext === ".pdf") return "pdf";
-  if (ext === ".docx") return "docx";
-  if (ext === ".txt") return "txt";
+  if (ext === ".pdf" || mime === "application/pdf") return "pdf";
+  if (ext === ".docx" || mime.includes("wordprocessingml")) return "docx";
+  if (ext === ".txt" || mime.startsWith("text/plain")) return "txt";
   if (ext === ".md") return "md";
-  if (ext === ".csv") return "csv";
+  if (ext === ".csv" || mime === "text/csv") return "csv";
+  if (ext === ".json" || mime === "application/json") return "json";
+  if (ext === ".html" || ext === ".htm" || mime === "text/html") return "html";
   return "unknown";
 }
 
@@ -41,11 +46,7 @@ async function parsePdf(
 ): Promise<{ text: string; pageCount: number }> {
   const pdfjs = await loadPdfJs();
 
-  onProgress?.({
-    fileName: file.name,
-    stage: "reading",
-    detail: "Đang đọc PDF…",
-  });
+  onProgress?.({ fileName: file.name, stage: "reading", detail: "Đang đọc PDF…" });
 
   const buffer = await file.arrayBuffer();
 
@@ -54,23 +55,23 @@ async function parsePdf(
     doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("worker") || msg.includes("Worker")) {
-      throw new Error(
-        `${file.name}: Lỗi PDF worker. Thử refresh trang (Ctrl+F5) hoặc dùng file TXT/DOCX.`
-      );
+    if (/worker/i.test(msg)) {
+      throw new Error(`${file.name}: Lỗi PDF worker — Ctrl+F5 refresh hoặc dùng Dán văn bản.`);
     }
     throw new Error(`${file.name}: Không mở được PDF — ${msg}`);
   }
 
   const pages: string[] = [];
-  const maxPages = Math.min(doc.numPages, 200);
+  const total = doc.numPages;
 
-  for (let i = 1; i <= maxPages; i++) {
+  for (let i = 1; i <= total; i++) {
+    if (i % 5 === 0) await yieldToMain();
+
     onProgress?.({
       fileName: file.name,
       stage: "parsing",
-      percent: Math.round((i / maxPages) * 100),
-      detail: `Trang ${i}/${maxPages}`,
+      percent: Math.round((i / total) * 100),
+      detail: `Trang ${i}/${total}`,
     });
 
     const page = await doc.getPage(i);
@@ -86,11 +87,11 @@ async function parsePdf(
   const text = pages.join("\n\n");
   if (!text.trim()) {
     throw new Error(
-      `${file.name}: PDF không có chữ (file scan/ảnh). Hãy copy text vào "Dán văn bản" hoặc dùng DOCX/TXT.`
+      `${file.name}: PDF scan/ảnh — không có chữ. Dùng "Dán văn bản" hoặc DOCX/TXT.`
     );
   }
 
-  return { text, pageCount: doc.numPages };
+  return { text, pageCount: total };
 }
 
 async function parseDocx(file: File): Promise<string> {
@@ -109,9 +110,19 @@ async function parseText(file: File): Promise<string> {
   return text;
 }
 
+function stripHtml(html: string): string {
+  const el = typeof document !== "undefined" ? document.createElement("div") : null;
+  if (el) {
+    el.innerHTML = html;
+    return (el.textContent ?? el.innerText ?? "").trim();
+  }
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function parseCsv(text: string): string {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  return lines
+  return text
+    .split(/\r?\n/)
+    .filter(Boolean)
     .map((line, i) => (i === 0 ? `Header: ${line}` : `Row ${i}: ${line}`))
     .join("\n");
 }
@@ -120,18 +131,18 @@ export async function parseFile(
   file: File,
   onProgress?: (p: ParseProgress) => void
 ): Promise<{ text: string; type: SourceType; pageCount?: number }> {
-  const type = getSourceType(file.name);
+  const type = getSourceType(file.name, file.type);
   if (type === "unknown") {
-    throw new Error(`Không hỗ trợ ${file.name}. Dùng PDF, DOCX, TXT, MD, CSV.`);
+    throw new Error(`${file.name}: định dạng chưa hỗ trợ. Thử PDF, DOCX, TXT, MD, CSV, JSON, HTML.`);
   }
 
   onProgress?.({ fileName: file.name, stage: "parsing", detail: "Đang phân tích…" });
 
   switch (type) {
     case "pdf": {
-      const { text, pageCount } = await parsePdf(file, onProgress);
+      const r = await parsePdf(file, onProgress);
       onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
-      return { text, type, pageCount };
+      return { ...r, type };
     }
     case "docx": {
       const text = await parseDocx(file);
@@ -142,6 +153,27 @@ export async function parseFile(
       const raw = await parseText(file);
       onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
       return { text: parseCsv(raw), type };
+    }
+    case "json": {
+      const raw = await parseText(file);
+      try {
+        const parsed = JSON.parse(raw);
+        const text =
+          typeof parsed === "string"
+            ? parsed
+            : JSON.stringify(parsed, null, 2);
+        onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+        return { text, type };
+      } catch {
+        throw new Error(`${file.name}: JSON không hợp lệ.`);
+      }
+    }
+    case "html": {
+      const raw = await parseText(file);
+      const text = stripHtml(raw);
+      if (!text) throw new Error(`${file.name}: HTML không có nội dung text.`);
+      onProgress?.({ fileName: file.name, stage: "done", percent: 100 });
+      return { text, type };
     }
     case "txt":
     case "md": {
@@ -154,11 +186,10 @@ export async function parseFile(
   }
 }
 
-/** Parse pasted plain text as a virtual document. */
 export function parsePastedText(title: string, raw: string): { text: string; type: SourceType } {
   const text = raw.trim();
-  if (text.length < 20) {
-    throw new Error("Văn bản quá ngắn — cần ít nhất 20 ký tự.");
+  if (text.length < 10) {
+    throw new Error("Văn bản quá ngắn — cần ít nhất 10 ký tự.");
   }
   return { text, type: "txt" };
 }

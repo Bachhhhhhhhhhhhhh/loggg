@@ -13,10 +13,9 @@ import type { NotebookSource } from "@/lib/notebook/types";
 interface PasteTextSourceProps {
   notebookId: string;
   onUploaded: (source: NotebookSource) => void | Promise<void>;
-  disabled?: boolean;
 }
 
-export function PasteTextSource({ notebookId, onUploaded, disabled }: PasteTextSourceProps) {
+export function PasteTextSource({ notebookId, onUploaded }: PasteTextSourceProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("Văn bản dán");
   const [text, setText] = useState("");
@@ -36,7 +35,7 @@ export function PasteTextSource({ notebookId, onUploaded, disabled }: PasteTextS
         name: title.trim() || "Văn bản dán",
         type,
         size: parsed.length,
-        text: parsed,
+        text: "",
         enabled: true,
         uploadedAt: Date.now(),
         chunks,
@@ -58,7 +57,6 @@ export function PasteTextSource({ notebookId, onUploaded, disabled }: PasteTextS
         variant="outline"
         className="w-full text-[10px] h-8"
         onClick={() => setOpen(true)}
-        disabled={disabled}
       >
         <ClipboardPaste className="h-3 w-3 mr-1" />
         Dán văn bản (TXT)
@@ -82,7 +80,7 @@ export function PasteTextSource({ notebookId, onUploaded, disabled }: PasteTextS
       />
       {error && <p className="text-[10px] text-red-400">{error}</p>}
       <div className="flex gap-2">
-        <Button size="sm" onClick={handleAdd} disabled={loading || text.length < 20} className="text-[10px] h-7">
+        <Button size="sm" onClick={handleAdd} disabled={loading || text.length < 10} className="text-[10px] h-7">
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
           Thêm
         </Button>

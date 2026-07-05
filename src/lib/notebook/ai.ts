@@ -3,8 +3,10 @@ import type { ChatMessage } from "./types";
 
 const MODELS = [
   "gemini-2.5-flash",
+  "gemini-2.5-flash-preview-05-20",
   "gemini-2.0-flash",
   "gemini-2.0-flash-001",
+  "gemini-1.5-flash-8b",
   "gemini-1.5-flash-latest",
   "gemini-1.5-flash",
 ] as const;
@@ -131,7 +133,7 @@ ${excerpt}`;
         }))
       : [],
     flashcards: Array.isArray(parsed.flashcards)
-      ? parsed.flashcards.slice(0, 12).map((f: { front?: string; back?: string }) => ({
+      ? parsed.flashcards.map((f: { front?: string; back?: string }) => ({
           front: String(f.front ?? ""),
           back: String(f.back ?? ""),
         }))

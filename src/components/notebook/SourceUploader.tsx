@@ -7,15 +7,18 @@ import { parseFile, type ParseProgress } from "@/lib/notebook/parser";
 import { chunkText } from "@/lib/notebook/chunker";
 import { createId } from "@/lib/notebook/id";
 import { getSettings } from "@/lib/notebook/storage";
-import {
-  MAX_FILE_SIZE_MB,
-  MAX_SOURCES_PER_NOTEBOOK,
-  SUPPORTED_EXTENSIONS,
-  type NotebookSource,
-} from "@/lib/notebook/types";
+import { SUPPORTED_EXTENSIONS, type NotebookSource } from "@/lib/notebook/types";
 
-const ACCEPT_TYPES =
-  ".pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv";
+const ACCEPT_TYPES = [
+  ...SUPPORTED_EXTENSIONS,
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "text/html",
+].join(",");
 
 interface SourceUploaderProps {
   notebookId: string;
@@ -29,63 +32,83 @@ export function SourceUploader({
   onUploaded,
 }: SourceUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const countRef = useRef(currentCount);
+  countRef.current = currentCount;
+
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ParseProgress | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [batchInfo, setBatchInfo] = useState<string | null>(null);
 
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
       setError(null);
       setSuccess(null);
       const list = Array.from(files);
-      if (currentCount + list.length > MAX_SOURCES_PER_NOTEBOOK) {
-        setError(`Tối đa ${MAX_SOURCES_PER_NOTEBOOK} tài liệu mỗi notebook.`);
-        return;
-      }
+      if (!list.length) return;
 
       setLoading(true);
+      setBatchInfo(`0/${list.length} file`);
       const settings = getSettings();
+      const uploaded: string[] = [];
+      const failed: string[] = [];
 
       try {
-        for (const file of list) {
-          if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-            throw new Error(`${file.name} vượt quá ${MAX_FILE_SIZE_MB}MB`);
+        for (let i = 0; i < list.length; i++) {
+          const file = list[i];
+          setBatchInfo(`${i + 1}/${list.length} file`);
+
+          try {
+            const { text, type, pageCount } = await parseFile(file, setProgress);
+            const sourceId = createId("src");
+            const chunks = chunkText(text, sourceId, settings.chunkSize);
+
+            if (chunks.length === 0) {
+              throw new Error("nội dung quá ngắn");
+            }
+
+            const source: NotebookSource = {
+              id: sourceId,
+              notebookId,
+              name: file.name,
+              type,
+              size: file.size,
+              text: "",
+              pageCount,
+              enabled: true,
+              uploadedAt: Date.now(),
+              chunks,
+            };
+
+            await onUploaded(source);
+            countRef.current += 1;
+            uploaded.push(`${file.name} (${chunks.length} chunks)`);
+            setSuccess(`✓ Đã thêm: ${uploaded[uploaded.length - 1]}`);
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : "lỗi không xác định";
+            failed.push(`${file.name}: ${msg}`);
           }
+        }
 
-          const { text, type, pageCount } = await parseFile(file, setProgress);
-
-          const sourceId = createId("src");
-          const chunks = chunkText(text, sourceId, settings.chunkSize);
-          if (chunks.length === 0) {
-            throw new Error(`${file.name}: nội dung quá ngắn để phân tích.`);
-          }
-
-          const source: NotebookSource = {
-            id: sourceId,
-            notebookId,
-            name: file.name,
-            type,
-            size: file.size,
-            text,
-            pageCount,
-            enabled: true,
-            uploadedAt: Date.now(),
-            chunks,
-          };
-          await onUploaded(source);
-          setSuccess(`✓ ${file.name} — ${chunks.length} chunks${pageCount ? `, ${pageCount} trang` : ""}`);
+        if (failed.length && uploaded.length) {
+          setError(`Một số file lỗi:\n${failed.join("\n")}`);
+        } else if (failed.length && !uploaded.length) {
+          setError(failed.join("\n"));
+        } else if (uploaded.length > 1) {
+          setSuccess(`✓ Đã thêm ${uploaded.length} tài liệu thành công`);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Lỗi upload tài liệu");
+        setError(e instanceof Error ? e.message : "Lỗi upload");
       } finally {
         setLoading(false);
         setProgress(null);
+        setBatchInfo(null);
         if (inputRef.current) inputRef.current.value = "";
       }
     },
-    [notebookId, currentCount, onUploaded]
+    [notebookId, onUploaded]
   );
 
   const onDrop = useCallback(
@@ -129,11 +152,11 @@ export function SourceUploader({
           <Upload className="h-8 w-8 mx-auto text-slate-500" />
         )}
         <p className="text-xs font-medium text-slate-300 mt-2">
-          {loading && progress
-            ? progress.detail ?? "Đang xử lý…"
-            : loading
-              ? "Đang xử lý tài liệu…"
-              : "Kéo thả hoặc click để upload"}
+          {loading
+            ? batchInfo
+              ? `${batchInfo} — ${progress?.detail ?? "đang xử lý…"}`
+              : "Đang xử lý…"
+            : "Kéo thả nhiều file hoặc click upload"}
         </p>
         {loading && progress?.percent != null && (
           <div className="mt-2 mx-auto max-w-[180px] h-1 rounded-full bg-slate-800 overflow-hidden">
@@ -144,14 +167,14 @@ export function SourceUploader({
           </div>
         )}
         <p className="text-[10px] text-slate-600 mt-1 font-mono">
-          PDF · DOCX · TXT · MD · CSV — tối đa {MAX_FILE_SIZE_MB}MB
+          PDF · DOCX · TXT · MD · CSV · JSON · HTML — không giới hạn
         </p>
       </div>
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
           <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-red-300">{error}</p>
+          <p className="text-[11px] text-red-300 whitespace-pre-wrap">{error}</p>
         </div>
       )}
 
@@ -164,9 +187,7 @@ export function SourceUploader({
 
       <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
         <FileText className="h-3 w-3" />
-        <span>
-          {currentCount}/{MAX_SOURCES_PER_NOTEBOOK} nguồn · xử lý trên trình duyệt
-        </span>
+        <span>{currentCount} nguồn · upload không giới hạn · lưu cục bộ</span>
       </div>
     </div>
   );

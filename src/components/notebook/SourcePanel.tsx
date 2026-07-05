@@ -58,11 +58,7 @@ export function SourcePanel({
           currentCount={sources.length}
           onUploaded={onUpload}
         />
-        <PasteTextSource
-          notebookId={notebookId}
-          onUploaded={onUpload}
-          disabled={sources.length >= 20}
-        />
+        <PasteTextSource notebookId={notebookId} onUploaded={onUpload} />
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">

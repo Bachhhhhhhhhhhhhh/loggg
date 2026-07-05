@@ -11,7 +11,16 @@ import { NotebookChat } from "@/components/notebook/NotebookChat";
 import { StudioPanel } from "@/components/notebook/StudioPanel";
 import { SourcePreviewModal } from "@/components/notebook/SourcePreviewModal";
 import { NotebookSettingsDialog } from "@/components/notebook/NotebookSettingsDialog";
-import { getNotebook, saveNotebook, getSettings } from "@/lib/notebook/storage";
+import {
+  getNotebook,
+  addSource,
+  updateSource,
+  removeSource,
+  saveMessages,
+  saveInsights,
+  saveNotebookTitle,
+  getSettings,
+} from "@/lib/notebook/storage";
 import { generateInsights } from "@/lib/notebook/insights";
 import { generateAiInsights, isAiReady } from "@/lib/notebook/ai";
 import { getSourcesCombinedText } from "@/lib/notebook/source-text";
@@ -35,25 +44,12 @@ function WorkspaceContent() {
     notebookRef.current = notebook;
   }, [notebook]);
 
-  const persistUpdate = useCallback(
-    async (updater: (prev: Notebook) => Notebook): Promise<Notebook | null> => {
-      const current = notebookRef.current;
-      if (!current) return null;
-      const updated = { ...updater(current), updatedAt: Date.now() };
-      try {
-        await saveNotebook(updated);
-        notebookRef.current = updated;
-        setNotebook(updated);
-        setSaveError(null);
-        return updated;
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Lỗi lưu";
-        setSaveError(msg);
-        throw e;
-      }
-    },
-    []
-  );
+  const applyLocal = useCallback((updated: Notebook) => {
+    notebookRef.current = updated;
+    setNotebook(updated);
+    setSaveError(null);
+    return updated;
+  }, []);
 
   useEffect(() => {
     if (!notebookId) {
@@ -65,11 +61,10 @@ function WorkspaceContent() {
         router.replace("/notebook");
         return;
       }
-      notebookRef.current = nb;
-      setNotebook(nb);
+      applyLocal(nb);
       setLoading(false);
     });
-  }, [notebookId, router]);
+  }, [notebookId, router, applyLocal]);
 
   if (loading || !notebook) {
     return (
@@ -80,46 +75,56 @@ function WorkspaceContent() {
   }
 
   const handleUpload = async (source: NotebookSource) => {
-    await persistUpdate((prev) => ({
-      ...prev,
-      sources: [...prev.sources, source],
-    }));
+    try {
+      await addSource(notebook.id, source);
+      applyLocal({
+        ...notebookRef.current!,
+        sources: [...notebookRef.current!.sources, source],
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Lỗi lưu tài liệu";
+      setSaveError(msg);
+      throw e;
+    }
   };
 
   const handleToggle = async (id: string) => {
-    await persistUpdate((prev) => ({
-      ...prev,
-      sources: prev.sources.map((s) =>
-        s.id === id ? { ...s, enabled: !s.enabled } : s
-      ),
-    }));
+    const current = notebookRef.current!;
+    const toggled = current.sources.map((s) =>
+      s.id === id ? { ...s, enabled: !s.enabled } : s
+    );
+    const target = toggled.find((s) => s.id === id);
+    if (target) await updateSource(target);
+    applyLocal({ ...current, sources: toggled, updatedAt: Date.now() });
   };
 
   const handleDeleteSource = async (id: string) => {
-    await persistUpdate((prev) => ({
-      ...prev,
-      sources: prev.sources.filter((s) => s.id !== id),
-    }));
+    await removeSource(notebook.id, id);
+    applyLocal({
+      ...notebookRef.current!,
+      sources: notebookRef.current!.sources.filter((s) => s.id !== id),
+      updatedAt: Date.now(),
+    });
   };
 
   const handleUserMessage = async (msg: ChatMessage) => {
-    const updated = await persistUpdate((prev) => ({
-      ...prev,
-      messages: [...prev.messages, msg],
-    }));
-    return updated;
+    const current = notebookRef.current!;
+    const messages = [...current.messages, msg];
+    await saveMessages(notebook.id, messages);
+    return applyLocal({ ...current, messages, updatedAt: Date.now() });
   };
 
   const handleAssistantMessage = async (msg: ChatMessage) => {
-    await persistUpdate((prev) => ({
-      ...prev,
-      messages: [...prev.messages, msg],
-    }));
+    const current = notebookRef.current!;
+    const messages = [...current.messages, msg];
+    await saveMessages(notebook.id, messages);
+    applyLocal({ ...current, messages, updatedAt: Date.now() });
   };
 
   const handleGenerateInsights = async () => {
-    const current = notebookRef.current;
-    if (!current?.sources.some((s) => s.enabled)) return;
+    const current = notebookRef.current!;
+    if (!current.sources.some((s) => s.enabled)) return;
     setInsightsLoading(true);
     try {
       let insights = generateInsights(current.sources);
@@ -152,14 +157,21 @@ function WorkspaceContent() {
             ...insights,
             summary:
               insights.summary +
-              `\n\n⚠️ Gemini: ${e instanceof Error ? e.message : "lỗi"} — hiển thị bản trích xuất.`,
+              `\n\n⚠️ Gemini: ${e instanceof Error ? e.message : "lỗi"}`,
           };
         }
       }
-      await persistUpdate((prev) => ({ ...prev, insights }));
+      await saveInsights(notebook.id, insights);
+      applyLocal({ ...current, insights, updatedAt: Date.now() });
     } finally {
       setInsightsLoading(false);
     }
+  };
+
+  const handleTitleBlur = async (title: string) => {
+    setEditingTitle(false);
+    await saveNotebookTitle(notebook.id, title);
+    applyLocal({ ...notebookRef.current!, title, updatedAt: Date.now() });
   };
 
   return (
@@ -173,15 +185,9 @@ function WorkspaceContent() {
         <span className="text-xl">{notebook.emoji}</span>
         {editingTitle ? (
           <Input
-            value={notebook.title}
-            onChange={(e) =>
-              setNotebook((n) => (n ? { ...n, title: e.target.value } : n))
-            }
-            onBlur={() => {
-              setEditingTitle(false);
-              if (notebookRef.current) persistUpdate((p) => ({ ...p, title: notebook.title }));
-            }}
-            onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
+            defaultValue={notebook.title}
+            onBlur={(e) => handleTitleBlur(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
             className="h-8 max-w-xs bg-slate-900/60 text-sm font-semibold"
             autoFocus
           />
@@ -195,7 +201,9 @@ function WorkspaceContent() {
         )}
         <div className="ml-auto flex items-center gap-2">
           {saveError && (
-            <span className="text-[10px] text-red-400 max-w-[200px] truncate">{saveError}</span>
+            <span className="text-[10px] text-red-400 max-w-[220px] truncate" title={saveError}>
+              {saveError}
+            </span>
           )}
           <NotebookSettingsDialog />
         </div>
