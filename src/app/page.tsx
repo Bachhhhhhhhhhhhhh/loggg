@@ -32,7 +32,9 @@ import {
   InventoryChart,
   GenericBarChart,
 } from "@/components/charts/ChartComponents";
-import { dashboardKPIs, chartData, marketWatchData } from "@/data/kpis";
+import { chartData } from "@/data/kpis";
+import { useMarketData } from "@/context/MarketDataContext";
+import { MarketInsightsPanel } from "@/components/dashboard/MarketInsightsPanel";
 import { getCompletionStats, getEnrichedPhases } from "@/lib/progress";
 import { knowledgeStats } from "@/data/knowledge";
 
@@ -100,6 +102,7 @@ const bentoFeatures = [
 ];
 
 export default function HomePage() {
+  const { snapshot, loading: marketLoading, lastUpdatedLabel } = useMarketData();
   const platformStats = getCompletionStats();
   const phases = getEnrichedPhases();
   const stats = [
@@ -265,20 +268,34 @@ export default function HomePage() {
           title="Market Overview"
           description="KPI supply chain mô phỏng theo phong cách terminal tài chính."
           action={
-            <Badge variant="success" className="text-[9px] gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 pulse-live" />
-              LIVE DEMO
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={snapshot.isLive ? "success" : "warning"}
+                className="text-[9px] gap-1"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full pulse-live ${
+                    snapshot.isLive ? "bg-emerald-400" : "bg-amber-400"
+                  }`}
+                />
+                {marketLoading ? "ĐANG TẢI" : snapshot.isLive ? "LIVE" : "DEMO"}
+              </Badge>
+              {snapshot.isLive && (
+                <span className="text-[10px] text-slate-600 font-mono">{lastUpdatedLabel}</span>
+              )}
+            </div>
           }
           className="mb-4"
         />
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {dashboardKPIs.map((kpi, i) => (
+          {snapshot.kpis.map((kpi, i) => (
             <KPICard key={kpi.id} kpi={kpi} index={i} />
           ))}
         </div>
       </section>
+
+      <MarketInsightsPanel />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-1 glow-blue">
@@ -316,7 +333,7 @@ export default function HomePage() {
           <Badge variant="secondary" className="text-[10px] font-mono">10 metrics</Badge>
         </CardHeader>
         <CardContent className="pt-2">
-          <MarketWatchTable data={marketWatchData} />
+          <MarketWatchTable data={snapshot.marketWatch} />
         </CardContent>
       </Card>
 

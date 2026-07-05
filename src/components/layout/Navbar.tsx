@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { MarketTicker } from "./MarketTicker";
 import { CommandPaletteTrigger } from "./CommandPalette";
+import { NotebookSettingsDialog } from "@/components/notebook/NotebookSettingsDialog";
 import { useCommandPaletteContext } from "./CommandPaletteContext";
 import { getCompletionStats } from "@/lib/progress";
 
@@ -121,6 +122,7 @@ export function Navbar() {
             <div className="flex items-center gap-2.5">
               <LiveClock />
 
+              <NotebookSettingsDialog compact />
               <CommandPaletteTrigger onClick={() => setCommandOpen(true)} />
 
               <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl pro-surface">

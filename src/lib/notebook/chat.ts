@@ -6,6 +6,7 @@ import {
   buildContextFromChunks,
 } from "./retrieval";
 import { askGemini, isAiReady } from "./ai";
+import { getEffectiveGeminiKey } from "@/lib/gemini/config";
 import { getSettings } from "./storage";
 import { detectQueryIntent } from "./query-expand";
 import { polishAiResponse } from "./response-polish";
@@ -115,7 +116,7 @@ export async function sendMessage(
         throw new Error("Chưa có ngữ cảnh — upload tài liệu trước");
       }
       content = await askGemini(
-        settings.geminiApiKey,
+        getEffectiveGeminiKey() || settings.geminiApiKey,
         query,
         context,
         history,

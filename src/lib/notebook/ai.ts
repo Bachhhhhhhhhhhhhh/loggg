@@ -11,6 +11,7 @@ import {
   buildChatUserMessage,
 } from "./prompts";
 import { polishAiResponse, polishSummary } from "./response-polish";
+import { getEffectiveGeminiKey } from "@/lib/gemini/config";
 
 const MODELS = [
   "gemini-2.5-flash",
@@ -314,5 +315,6 @@ ${context.slice(0, 85000)}`;
 }
 
 export function isAiReady(apiKey: string, useAi?: boolean): boolean {
-  return normalizeKey(apiKey).length >= 20 && useAi !== false;
+  const key = normalizeKey(apiKey) || getEffectiveGeminiKey();
+  return key.length >= 20 && useAi !== false;
 }

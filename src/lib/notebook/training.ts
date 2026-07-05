@@ -5,6 +5,7 @@ import { generateAiInsights, isAiReady } from "./ai";
 import { buildContextFromChunks, buildTrainingContext } from "./retrieval";
 import { buildSourceIndex, invalidateIndex } from "./retrieval-index";
 import { getDynamicSuggestions } from "./source-profile";
+import { getEffectiveGeminiKey } from "@/lib/gemini/config";
 import { getSettings } from "./storage";
 
 export interface TrainingResult {
@@ -55,7 +56,7 @@ export async function trainFromSources(
     try {
       const context = buildContextFromChunks(buildTrainingContext(enabled, notebookId));
       const ai = await generateAiInsights(
-        settings.geminiApiKey,
+        getEffectiveGeminiKey() || settings.geminiApiKey,
         context,
         enabled.map((s) => s.name)
       );

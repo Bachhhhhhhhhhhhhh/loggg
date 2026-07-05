@@ -9,7 +9,11 @@ import type { NotebookSettings } from "@/lib/notebook/types";
 import { getSettings, saveSettings } from "@/lib/notebook/storage";
 import { testGeminiApi } from "@/lib/notebook/ai";
 
-export function NotebookSettingsDialog() {
+interface NotebookSettingsDialogProps {
+  compact?: boolean;
+}
+
+export function NotebookSettingsDialog({ compact = false }: NotebookSettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<NotebookSettings>(getSettings);
   const [testing, setTesting] = useState(false);
@@ -56,12 +60,19 @@ export function NotebookSettingsDialog() {
           setTestError(null);
           setOpen(true);
         }}
-        className="h-8 text-[10px]"
+        className={compact ? "relative h-8 w-8 p-0 shrink-0" : "h-8 text-[10px]"}
+        title="Cài đặt Gemini AI"
       >
-        <Settings className="h-3.5 w-3.5 mr-1" />
-        Cài đặt AI
+        <Settings className={compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5 mr-1"} />
+        {!compact && "Cài đặt AI"}
         {hasKey && getSettings().useAi && (
-          <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span
+            className={
+              compact
+                ? "absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-400"
+                : "ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400"
+            }
+          />
         )}
       </Button>
 
@@ -109,7 +120,8 @@ export function NotebookSettingsDialog() {
                   >
                     Google AI Studio
                   </a>
-                  . AI dùng Gemini chat đa lượt + retrieval thông minh từ tài liệu.
+                  . Dùng cho Notebook AI, Market Briefing và phân tích SCM toàn nền tảng.
+                  Có thể set qua <code className="text-slate-500">NEXT_PUBLIC_GEMINI_API_KEY</code> khi build.
                 </p>
               </div>
 

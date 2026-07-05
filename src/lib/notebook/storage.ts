@@ -346,16 +346,29 @@ export async function deleteNotebook(id: string): Promise<void> {
 }
 
 export function getSettings(): NotebookSettings {
-  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+  const envKey = (process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "").trim();
+  if (typeof window === "undefined") {
+    if (envKey.length >= 20) {
+      return { ...DEFAULT_SETTINGS, geminiApiKey: envKey, useAi: true };
+    }
+    return DEFAULT_SETTINGS;
+  }
   try {
     const raw =
       localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem("settings");
-    if (!raw) return DEFAULT_SETTINGS;
-    const parsed = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = raw
+      ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+      : { ...DEFAULT_SETTINGS };
     parsed.geminiApiKey = String(parsed.geminiApiKey ?? "").trim();
+    if (!parsed.geminiApiKey && envKey.length >= 20) {
+      parsed.geminiApiKey = envKey;
+    }
     if (parsed.geminiApiKey.length >= 20) parsed.useAi = true;
     return parsed;
   } catch {
+    if (envKey.length >= 20) {
+      return { ...DEFAULT_SETTINGS, geminiApiKey: envKey, useAi: true };
+    }
     return DEFAULT_SETTINGS;
   }
 }
