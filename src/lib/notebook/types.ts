@@ -84,7 +84,7 @@ export interface NotebookSettings {
 export const DEFAULT_SETTINGS: NotebookSettings = {
   geminiApiKey: "",
   useAi: false,
-  chunkSize: 800,
+  chunkSize: 900,
 };
 
 export const SUPPORTED_EXTENSIONS = [

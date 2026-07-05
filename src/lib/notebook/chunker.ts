@@ -1,13 +1,26 @@
 import { createId } from "./id";
 import type { TextChunk } from "./types";
 
+const VI_BREAKS = [". ", "! ", "? ", ".\n", "!\n", "?\n", ":\n", ";\n", "\n\n", "。"];
+
+function findBreakPoint(slice: string, minRatio: number, chunkSize: number): number {
+  let best = -1;
+  for (const sep of VI_BREAKS) {
+    const at = slice.lastIndexOf(sep);
+    if (at > chunkSize * minRatio && at > best) {
+      best = at + sep.length - (sep.endsWith("\n") ? 0 : 1);
+    }
+  }
+  return best;
+}
+
 export function chunkText(
   text: string,
   sourceId: string,
-  chunkSize = 800,
-  overlap = 120
+  chunkSize = 900,
+  overlap = 150
 ): TextChunk[] {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/\s+/g, " ").trim();
+  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
   if (!normalized) return [];
 
   if (normalized.length <= chunkSize) {
@@ -31,14 +44,9 @@ export function chunkText(
 
     if (end < normalized.length) {
       const slice = normalized.slice(start, end);
-      const breakAt = Math.max(
-        slice.lastIndexOf(". "),
-        slice.lastIndexOf("! "),
-        slice.lastIndexOf("? "),
-        slice.lastIndexOf("\n")
-      );
-      if (breakAt > chunkSize * 0.35) {
-        end = start + breakAt + 1;
+      const breakAt = findBreakPoint(slice, 0.3, chunkSize);
+      if (breakAt > 0) {
+        end = start + breakAt;
       }
     }
 

@@ -12,6 +12,7 @@ import { getSettings } from "@/lib/notebook/storage";
 import { isAiReady } from "@/lib/notebook/ai";
 
 interface NotebookChatProps {
+  notebookId: string;
   sources: NotebookSource[];
   messages: ChatMessage[];
   onUserMessage: (msg: ChatMessage) => Promise<Notebook | null>;
@@ -39,6 +40,7 @@ function renderMarkdownLite(text: string): React.ReactNode[] {
 }
 
 export function NotebookChat({
+  notebookId,
   sources,
   messages,
   onUserMessage,
@@ -73,7 +75,7 @@ export function NotebookChat({
     try {
       const updatedNotebook = await onUserMessage(userMsg);
       const history = updatedNotebook?.messages ?? [...messages, userMsg];
-      const reply = await sendMessage(query, sources, history);
+      const reply = await sendMessage(query, sources, history, notebookId);
       await onNewMessage(reply);
     } catch {
       await onNewMessage({

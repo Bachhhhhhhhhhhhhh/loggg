@@ -25,9 +25,10 @@ export function getSuggestedQuestions(): string[] {
 
 function buildExtractiveAnswer(
   query: string,
-  sources: NotebookSource[]
+  sources: NotebookSource[],
+  notebookId?: string
 ): { content: string; citations: ReturnType<typeof toCitations> } {
-  const results = retrieveForStudy(query, sources);
+  const results = retrieveForStudy(query, sources, notebookId);
   if (!results.length) {
     return {
       content:
@@ -64,10 +65,11 @@ function buildExtractiveAnswer(
 export async function sendMessage(
   query: string,
   sources: NotebookSource[],
-  history: ChatMessage[]
+  history: ChatMessage[],
+  notebookId?: string
 ): Promise<ChatMessage> {
   const settings = getSettings();
-  const results = retrieveForStudy(query, sources);
+  const results = retrieveForStudy(query, sources, notebookId);
   const citations = toCitations(results);
   const context = buildContextFromChunks(results);
 
@@ -86,7 +88,7 @@ export async function sendMessage(
       );
     } catch (err) {
       const aiErr = err instanceof Error ? err.message : "Lỗi AI";
-      const fallback = buildExtractiveAnswer(query, sources);
+      const fallback = buildExtractiveAnswer(query, sources, notebookId);
       content = `${fallback.content}\n\n---\n⚠️ *Gemini tạm lỗi: ${aiErr} — hiển thị bản trích xuất.*`;
     }
   } else {

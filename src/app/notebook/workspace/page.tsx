@@ -19,15 +19,8 @@ import {
   saveMessages,
   saveInsights,
   saveNotebookTitle,
-  getSettings,
 } from "@/lib/notebook/storage";
-import { generateInsights } from "@/lib/notebook/insights";
-import { generateAiInsights, isAiReady } from "@/lib/notebook/ai";
-import {
-  sampleChunksPerSource,
-  buildContextFromChunks,
-} from "@/lib/notebook/retrieval";
-import { createId } from "@/lib/notebook/id";
+import { trainFromSources, invalidateNotebookIndex } from "@/lib/notebook/training";
 import type { ChatMessage, Notebook, NotebookSource } from "@/lib/notebook/types";
 
 function WorkspaceContent() {
@@ -38,6 +31,7 @@ function WorkspaceContent() {
   const [notebook, setNotebook] = useState<Notebook | null>(null);
   const [loading, setLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(false);
+  const [trainingStatus, setTrainingStatus] = useState<string | null>(null);
   const [previewSource, setPreviewSource] = useState<NotebookSource | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -77,14 +71,52 @@ function WorkspaceContent() {
     );
   }
 
+  const runTraining = useCallback(
+    async (auto = false) => {
+      const current = notebookRef.current!;
+      if (!current.sources.some((s) => s.enabled && s.chunks.length > 0)) return;
+
+      setInsightsLoading(true);
+      setTrainingStatus(auto ? "AI đang học tài liệu mới…" : "Đang phân tích tài liệu…");
+      try {
+        const result = await trainFromSources(current.id, current.sources);
+        await saveInsights(current.id, result.insights);
+        applyLocal({
+          ...current,
+          insights: result.insights,
+          updatedAt: Date.now(),
+        });
+        setTrainingStatus(
+          result.usedAi
+            ? `✓ Đã học ${result.sourceCount} nguồn · ${result.chunkCount} chunks (Gemini)`
+            : `✓ Đã phân tích ${result.sourceCount} nguồn (cục bộ)`
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Lỗi huấn luyện";
+        setTrainingStatus(null);
+        if (!auto) setSaveError(msg);
+      } finally {
+        setInsightsLoading(false);
+        setTimeout(() => setTrainingStatus(null), 6000);
+      }
+    },
+    [applyLocal]
+  );
+
   const handleUpload = async (source: NotebookSource) => {
     try {
       await addSource(notebook.id, source);
-      applyLocal({
+      invalidateNotebookIndex(notebook.id);
+      const updated = applyLocal({
         ...notebookRef.current!,
         sources: [...notebookRef.current!.sources, source],
         updatedAt: Date.now(),
       });
+      const shouldAutoTrain =
+        !updated.insights && updated.sources.some((s) => s.enabled && s.chunks.length > 0);
+      if (shouldAutoTrain) {
+        void runTraining(true);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Lỗi lưu tài liệu";
       setSaveError(msg);
@@ -125,68 +157,7 @@ function WorkspaceContent() {
     applyLocal({ ...current, messages, updatedAt: Date.now() });
   };
 
-  const handleGenerateInsights = async () => {
-    const current = notebookRef.current!;
-    if (!current.sources.some((s) => s.enabled)) return;
-    setInsightsLoading(true);
-    try {
-      let insights = generateInsights(current.sources);
-      const settings = getSettings();
-      const enabled = current.sources.filter((s) => s.enabled);
-
-      if (isAiReady(settings.geminiApiKey, settings.useAi)) {
-        try {
-          const context = buildContextFromChunks(
-            sampleChunksPerSource(enabled, 5)
-          );
-          const ai = await generateAiInsights(
-            settings.geminiApiKey,
-            context,
-            enabled.map((s) => s.name)
-          );
-          if (ai.summary) insights = { ...insights, summary: ai.summary };
-          if (ai.outline.length) insights = { ...insights, outline: ai.outline };
-          if (ai.keyTopics.length) insights = { ...insights, keyTopics: ai.keyTopics };
-          if (ai.flashcards.length) {
-            insights = {
-              ...insights,
-              flashcards: ai.flashcards.map((f) => ({
-                id: createId("fc"),
-                front: f.front,
-                back: f.back,
-              })),
-            };
-          }
-          if (ai.quiz?.length) {
-            insights = {
-              ...insights,
-              quiz: ai.quiz.map((q) => ({
-                id: createId("quiz"),
-                question: q.question,
-                options: q.options.length >= 2 ? q.options : ["A", "B", "C", "D"],
-                correctIndex: Math.min(q.correctIndex, (q.options.length || 4) - 1),
-                explanation: q.explanation,
-              })),
-            };
-          }
-          if (ai.glossary?.length) {
-            insights = { ...insights, glossary: ai.glossary };
-          }
-        } catch (e) {
-          insights = {
-            ...insights,
-            summary:
-              insights.summary +
-              `\n\n⚠️ Gemini: ${e instanceof Error ? e.message : "lỗi"}`,
-          };
-        }
-      }
-      await saveInsights(notebook.id, insights);
-      applyLocal({ ...current, insights, updatedAt: Date.now() });
-    } finally {
-      setInsightsLoading(false);
-    }
-  };
+  const handleGenerateInsights = () => runTraining(false);
 
   const handleTitleBlur = async (title: string) => {
     setEditingTitle(false);
@@ -220,6 +191,11 @@ function WorkspaceContent() {
           </button>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {trainingStatus && (
+            <span className="text-[10px] text-teal-400 max-w-[240px] truncate" title={trainingStatus}>
+              {trainingStatus}
+            </span>
+          )}
           {saveError && (
             <span className="text-[10px] text-red-400 max-w-[220px] truncate" title={saveError}>
               {saveError}
@@ -243,6 +219,7 @@ function WorkspaceContent() {
 
         <div className="lg:col-span-5 border-r border-slate-800/60 min-h-[400px] lg:min-h-0 overflow-hidden flex flex-col">
           <NotebookChat
+            notebookId={notebook.id}
             sources={notebook.sources}
             messages={notebook.messages}
             onUserMessage={handleUserMessage}

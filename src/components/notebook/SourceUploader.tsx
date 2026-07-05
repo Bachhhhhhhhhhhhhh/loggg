@@ -63,7 +63,12 @@ export function SourceUploader({
           try {
             const { text, type, pageCount } = await parseFile(file, setProgress);
             const sourceId = createId("src");
-            const chunks = chunkText(text, sourceId, settings.chunkSize);
+            const chunks = chunkText(
+              text,
+              sourceId,
+              settings.chunkSize,
+              Math.round(settings.chunkSize * 0.17)
+            );
 
             if (chunks.length === 0) {
               throw new Error("nội dung quá ngắn");

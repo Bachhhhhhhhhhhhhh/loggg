@@ -5,6 +5,7 @@ import {
 } from "@google/generative-ai";
 import type { ChatMessage } from "./types";
 import { detectQueryIntent } from "./query-expand";
+import { getPreferredModel, setPreferredModel } from "./model-cache";
 
 const MODELS = [
   "gemini-2.5-flash",
@@ -50,10 +51,61 @@ function formatGeminiError(err: unknown): string {
   return raw.length > 180 ? raw.slice(0, 180) + "…" : raw;
 }
 
+function isRetryable(err: unknown): boolean {
+  const raw = err instanceof Error ? err.message : String(err);
+  return /429|RESOURCE_EXHAUSTED|quota|503|UNAVAILABLE|timeout/i.test(raw);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 function getClient(apiKey: string): GoogleGenerativeAI {
   const key = normalizeKey(apiKey);
   if (key.length < 20) throw new Error("API key chưa hợp lệ");
   return new GoogleGenerativeAI(key);
+}
+
+function orderedModels(): string[] {
+  const preferred = getPreferredModel();
+  if (preferred && MODELS.includes(preferred as (typeof MODELS)[number])) {
+    return [preferred, ...MODELS.filter((m) => m !== preferred)];
+  }
+  return [...MODELS];
+}
+
+function createModel(
+  genAI: GoogleGenerativeAI,
+  modelName: string,
+  jsonMode = false
+): GenerativeModel {
+  return genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: SYSTEM_INSTRUCTION,
+    generationConfig: {
+      temperature: jsonMode ? 0.25 : 0.4,
+      topP: 0.9,
+      maxOutputTokens: jsonMode ? 8192 : 4096,
+      ...(jsonMode ? { responseMimeType: "application/json" } : {}),
+    },
+  });
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < retries && isRetryable(err)) {
+        await sleep(1200 * (i + 1));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function tryModels<T>(
@@ -63,18 +115,12 @@ async function tryModels<T>(
   const genAI = getClient(apiKey);
   const errors: string[] = [];
 
-  for (const modelName of MODELS) {
+  for (const modelName of orderedModels()) {
     try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: SYSTEM_INSTRUCTION,
-        generationConfig: {
-          temperature: 0.4,
-          topP: 0.9,
-          maxOutputTokens: 4096,
-        },
-      });
-      return await fn(model, modelName);
+      const model = createModel(genAI, modelName);
+      const result = await withRetry(() => fn(model, modelName));
+      setPreferredModel(modelName);
+      return result;
     } catch (err) {
       errors.push(`${modelName}: ${formatGeminiError(err)}`);
     }
@@ -85,11 +131,11 @@ async function tryModels<T>(
 
 function buildChatHistory(history: ChatMessage[]): Content[] {
   return history
-    .slice(-8)
+    .slice(-10)
     .filter((m) => m.content.trim())
     .map((m) => ({
       role: m.role === "user" ? ("user" as const) : ("model" as const),
-      parts: [{ text: m.content.slice(0, 1200) }],
+      parts: [{ text: m.content.slice(0, 1400) }],
     }));
 }
 
@@ -103,6 +149,19 @@ function intentHint(query: string): string {
     qa: "Yêu cầu: TRẢ LỜI trực tiếp, đầy đủ, có ví dụ nếu tài liệu có.",
   };
   return hints[intent];
+}
+
+export function parseAiJson<T>(raw: string): T {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("AI không trả về JSON hợp lệ");
+  }
+  const jsonStr = candidate.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(jsonStr) as T;
 }
 
 export async function testGeminiApi(apiKey: string): Promise<string> {
@@ -147,6 +206,47 @@ export interface AiInsightsResult {
   glossary: { term: string; definition: string }[];
 }
 
+function normalizeInsights(parsed: Record<string, unknown>): AiInsightsResult {
+  return {
+    summary: String(parsed.summary ?? ""),
+    outline: Array.isArray(parsed.outline) ? parsed.outline.map(String) : [],
+    keyTopics: Array.isArray(parsed.keyTopics)
+      ? parsed.keyTopics.map((t) => {
+          const item = t as { topic?: string; detail?: string };
+          return { topic: String(item.topic ?? ""), detail: String(item.detail ?? "") };
+        })
+      : [],
+    flashcards: Array.isArray(parsed.flashcards)
+      ? parsed.flashcards.map((f) => {
+          const item = f as { front?: string; back?: string };
+          return { front: String(item.front ?? ""), back: String(item.back ?? "") };
+        })
+      : [],
+    quiz: Array.isArray(parsed.quiz)
+      ? parsed.quiz.map((q) => {
+          const item = q as {
+            question?: string;
+            options?: string[];
+            correctIndex?: number;
+            explanation?: string;
+          };
+          return {
+            question: String(item.question ?? ""),
+            options: Array.isArray(item.options) ? item.options.map(String) : [],
+            correctIndex: Number(item.correctIndex ?? 0),
+            explanation: String(item.explanation ?? ""),
+          };
+        })
+      : [],
+    glossary: Array.isArray(parsed.glossary)
+      ? parsed.glossary.map((g) => {
+          const item = g as { term?: string; definition?: string };
+          return { term: String(item.term ?? ""), definition: String(item.definition ?? "") };
+        })
+      : [],
+  };
+}
+
 export async function generateAiInsights(
   apiKey: string,
   context: string,
@@ -165,85 +265,31 @@ Trả về JSON với cấu trúc:
 }
 
 Tạo ít nhất: 6 keyTopics, 10 flashcards, 5 quiz (4 đáp án mỗi câu), 8 glossary.
-CHỈ dùng nội dung bên dưới.
+CHỈ dùng nội dung bên dưới. Không thêm markdown ngoài JSON.
 
 NỘI DUNG:
-${context.slice(0, 45000)}`;
+${context.slice(0, 50000)}`;
 
   const genAI = getClient(apiKey);
   let lastError: Error | null = null;
 
-  for (const modelName of MODELS) {
+  for (const modelName of orderedModels()) {
     try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: SYSTEM_INSTRUCTION,
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json",
-        },
-      });
-
-      const result = await model.generateContent(prompt);
+      const model = createModel(genAI, modelName, true);
+      const result = await withRetry(() => model.generateContent(prompt));
       const raw = result.response.text();
-      const parsed = JSON.parse(raw);
-
-      return {
-        summary: String(parsed.summary ?? ""),
-        outline: Array.isArray(parsed.outline) ? parsed.outline.map(String) : [],
-        keyTopics: Array.isArray(parsed.keyTopics)
-          ? parsed.keyTopics.map((t: { topic?: string; detail?: string }) => ({
-              topic: String(t.topic ?? ""),
-              detail: String(t.detail ?? ""),
-            }))
-          : [],
-        flashcards: Array.isArray(parsed.flashcards)
-          ? parsed.flashcards.map((f: { front?: string; back?: string }) => ({
-              front: String(f.front ?? ""),
-              back: String(f.back ?? ""),
-            }))
-          : [],
-        quiz: Array.isArray(parsed.quiz)
-          ? parsed.quiz.map(
-              (q: {
-                question?: string;
-                options?: string[];
-                correctIndex?: number;
-                explanation?: string;
-              }) => ({
-                question: String(q.question ?? ""),
-                options: Array.isArray(q.options) ? q.options.map(String) : [],
-                correctIndex: Number(q.correctIndex ?? 0),
-                explanation: String(q.explanation ?? ""),
-              })
-            )
-          : [],
-        glossary: Array.isArray(parsed.glossary)
-          ? parsed.glossary.map((g: { term?: string; definition?: string }) => ({
-              term: String(g.term ?? ""),
-              definition: String(g.definition ?? ""),
-            }))
-          : [],
-      };
+      const parsed = parseAiJson<Record<string, unknown>>(raw);
+      setPreferredModel(modelName);
+      return normalizeInsights(parsed);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
+        const model = createModel(genAI, modelName, false);
+        const result = await withRetry(() => model.generateContent(prompt));
         const raw = result.response.text();
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return {
-            summary: String(parsed.summary ?? ""),
-            outline: Array.isArray(parsed.outline) ? parsed.outline.map(String) : [],
-            keyTopics: Array.isArray(parsed.keyTopics) ? parsed.keyTopics : [],
-            flashcards: Array.isArray(parsed.flashcards) ? parsed.flashcards : [],
-            quiz: Array.isArray(parsed.quiz) ? parsed.quiz : [],
-            glossary: Array.isArray(parsed.glossary) ? parsed.glossary : [],
-          };
-        }
+        const parsed = parseAiJson<Record<string, unknown>>(raw);
+        setPreferredModel(modelName);
+        return normalizeInsights(parsed);
       } catch {
         /* try next model */
       }

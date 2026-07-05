@@ -16,6 +16,11 @@ export function expandQuery(query: string): string[] {
     [/so sánh|compare/i, ["so sánh", "khác biệt", "versus", "comparison"]],
     [/ứng dụng|thực tiễn|apply/i, ["ứng dụng", "case study", "best practice", "implementation"]],
     [/quiz|câu hỏi|kiểm tra/i, ["câu hỏi", "ôn tập", "quiz", "assessment"]],
+    [/lean|tinh gọn|lãng phí/i, ["lean", "waste", "kaizen", "5S", "tinh gọn"]],
+    [/last mile|giao hàng|delivery/i, ["last mile", "delivery", "fulfillment", "giao hàng"]],
+    [/procurement|mua hàng|sourcing/i, ["procurement", "sourcing", "purchasing", "mua hàng"]],
+    [/demand|dự báo|forecast/i, ["demand planning", "forecast", "dự báo nhu cầu"]],
+    [/3pl|4pl|đối tác logistics/i, ["3PL", "4PL", "logistics provider", "outsourcing"]],
   ];
 
   for (const [pattern, words] of expansions) {
