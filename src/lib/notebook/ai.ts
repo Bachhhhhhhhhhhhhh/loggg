@@ -4,8 +4,13 @@ import {
   type GenerativeModel,
 } from "@google/generative-ai";
 import type { ChatMessage } from "./types";
-import { detectQueryIntent } from "./query-expand";
 import { getPreferredModel, setPreferredModel } from "./model-cache";
+import {
+  CHAT_SYSTEM_INSTRUCTION,
+  INSIGHTS_SYSTEM_ADDENDUM,
+  buildChatUserMessage,
+} from "./prompts";
+import { polishAiResponse, polishSummary } from "./response-polish";
 
 const MODELS = [
   "gemini-2.5-flash",
@@ -15,17 +20,6 @@ const MODELS = [
   "gemini-1.5-flash-latest",
   "gemini-1.5-flash",
 ] as const;
-
-const SYSTEM_INSTRUCTION = `Bạn là LogIQ Study AI — trợ lý học Logistics & Supply Chain chuyên nghiệp (phong cách NotebookLM).
-
-NGUYÊN TẮC BẮT BUỘC:
-1. Trả lời bằng TIẾNG VIỆT rõ ràng, có cấu trúc (tiêu đề ngắn, bullet, bảng nếu cần).
-2. CHỈ dựa trên NGỮ CẢNH TÀI LIỆU được cung cấp trong từng lượt hỏi.
-3. Trích dẫn nguồn bằng [1], [2]... khớp số thứ tự trong ngữ cảnh.
-4. Không bịa số liệu, tên riêng, hoặc khái niệm không có trong tài liệu.
-5. Nếu thiếu thông tin: nói rõ "Tài liệu chưa đề cập đến…" và gợi ý câu hỏi khác.
-6. Giải thích như giáo viên: dễ hiểu, có ví dụ thực tế logistics khi tài liệu cho phép.
-7. Với câu tóm tắt: 4-6 bullet ý chính. Với khái niệm: định nghĩa + ứng dụng. Với so sánh: bảng hoặc bullet đối chiếu.`;
 
 function normalizeKey(apiKey: string): string {
   return apiKey.trim().replace(/\s+/g, "");
@@ -79,12 +73,17 @@ function createModel(
   modelName: string,
   jsonMode = false
 ): GenerativeModel {
+  const instruction = jsonMode
+    ? `${CHAT_SYSTEM_INSTRUCTION}\n\n${INSIGHTS_SYSTEM_ADDENDUM}`
+    : CHAT_SYSTEM_INSTRUCTION;
+
   return genAI.getGenerativeModel({
     model: modelName,
-    systemInstruction: SYSTEM_INSTRUCTION,
+    systemInstruction: instruction,
     generationConfig: {
-      temperature: jsonMode ? 0.25 : 0.4,
-      topP: 0.9,
+      temperature: jsonMode ? 0.35 : 0.62,
+      topP: 0.92,
+      topK: 40,
       maxOutputTokens: jsonMode ? 8192 : 4096,
       ...(jsonMode ? { responseMimeType: "application/json" } : {}),
     },
@@ -139,18 +138,6 @@ function buildChatHistory(history: ChatMessage[]): Content[] {
     }));
 }
 
-function intentHint(query: string): string {
-  const intent = detectQueryIntent(query);
-  const hints: Record<string, string> = {
-    summary: "Yêu cầu: TÓM TẮT — liệt kê 4-8 ý chính, mỗi ý 1-2 câu, kèm trích dẫn.",
-    concepts: "Yêu cầu: KHÁI NIỆM — liệt kê thuật ngữ quan trọng, mỗi mục có định nghĩa ngắn.",
-    compare: "Yêu cầu: SO SÁNH — nêu điểm giống/khác, dùng bullet hoặc bảng.",
-    apply: "Yêu cầu: ỨNG DỤNG — nêu cách áp dụng thực tế trong logistics/SCM.",
-    qa: "Yêu cầu: TRẢ LỜI trực tiếp, đầy đủ, có ví dụ nếu tài liệu có.",
-  };
-  return hints[intent];
-}
-
 export function parseAiJson<T>(raw: string): T {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -177,15 +164,10 @@ export async function askGemini(
   apiKey: string,
   question: string,
   context: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  sourceCount = 8
 ): Promise<string> {
-  const userMessage = `${intentHint(question)}
-
-═══ NGỮ CẢNH TÀI LIỆU ═══
-${context}
-
-═══ CÂU HỎI ═══
-${question}`;
+  const userMessage = buildChatUserMessage(question, context, sourceCount);
 
   return tryModels(apiKey, async (model) => {
     const chatHistory = buildChatHistory(history.slice(0, -1));
@@ -193,7 +175,7 @@ ${question}`;
     const result = await chat.sendMessage(userMessage);
     const text = result.response.text();
     if (!text?.trim()) throw new Error("AI trả về rỗng");
-    return text.trim();
+    return polishAiResponse(text);
   });
 }
 
@@ -208,18 +190,24 @@ export interface AiInsightsResult {
 
 function normalizeInsights(parsed: Record<string, unknown>): AiInsightsResult {
   return {
-    summary: String(parsed.summary ?? ""),
+    summary: polishSummary(String(parsed.summary ?? "")),
     outline: Array.isArray(parsed.outline) ? parsed.outline.map(String) : [],
     keyTopics: Array.isArray(parsed.keyTopics)
       ? parsed.keyTopics.map((t) => {
           const item = t as { topic?: string; detail?: string };
-          return { topic: String(item.topic ?? ""), detail: String(item.detail ?? "") };
+          return {
+            topic: String(item.topic ?? ""),
+            detail: polishAiResponse(String(item.detail ?? "")),
+          };
         })
       : [],
     flashcards: Array.isArray(parsed.flashcards)
       ? parsed.flashcards.map((f) => {
           const item = f as { front?: string; back?: string };
-          return { front: String(item.front ?? ""), back: String(item.back ?? "") };
+          return {
+            front: String(item.front ?? ""),
+            back: polishAiResponse(String(item.back ?? "")),
+          };
         })
       : [],
     quiz: Array.isArray(parsed.quiz)
@@ -234,14 +222,17 @@ function normalizeInsights(parsed: Record<string, unknown>): AiInsightsResult {
             question: String(item.question ?? ""),
             options: Array.isArray(item.options) ? item.options.map(String) : [],
             correctIndex: Number(item.correctIndex ?? 0),
-            explanation: String(item.explanation ?? ""),
+            explanation: polishAiResponse(String(item.explanation ?? "")),
           };
         })
       : [],
     glossary: Array.isArray(parsed.glossary)
       ? parsed.glossary.map((g) => {
           const item = g as { term?: string; definition?: string };
-          return { term: String(item.term ?? ""), definition: String(item.definition ?? "") };
+          return {
+            term: String(item.term ?? ""),
+            definition: polishAiResponse(String(item.definition ?? "")),
+          };
         })
       : [],
   };
@@ -254,18 +245,18 @@ export async function generateAiInsights(
 ): Promise<AiInsightsResult> {
   const prompt = `Phân tích tài liệu Logistics/SCM từ ${sourceNames.length} file: ${sourceNames.join(", ")}.
 
-Trả về JSON với cấu trúc:
+Trả về JSON:
 {
-  "summary": "tóm tắt 5-8 câu tiếng Việt, súc tích",
-  "outline": ["mục dàn ý 1", "..."],
-  "keyTopics": [{"topic": "chủ đề", "detail": "mô tả 1-2 câu"}],
-  "flashcards": [{"front": "câu hỏi/thuật ngữ", "back": "đáp án/định nghĩa"}],
-  "quiz": [{"question": "câu hỏi", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "giải thích"}],
-  "glossary": [{"term": "ABC", "definition": "định nghĩa"}]
+  "summary": "6-10 câu văn xuôi mạch lạc, tóm tắt toàn cảnh như giảng viên đang giới thiệu bài",
+  "outline": ["mục dàn ý — câu hoàn chỉnh, không phải cụm từ"],
+  "keyTopics": [{"topic": "chủ đề", "detail": "2 câu giải thích tự nhiên, dễ hiểu"}],
+  "flashcards": [{"front": "câu hỏi gợi mở", "back": "đáp án 1-3 câu mượt mà"}],
+  "quiz": [{"question": "câu hỏi", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "giải thích 2-4 câu như thầy giáo"}],
+  "glossary": [{"term": "ABC", "definition": "định nghĩa câu hoàn chỉnh"}]
 }
 
-Tạo ít nhất: 6 keyTopics, 10 flashcards, 5 quiz (4 đáp án mỗi câu), 8 glossary.
-CHỈ dùng nội dung bên dưới. Không thêm markdown ngoài JSON.
+Tạo ít nhất: 6 keyTopics, 10 flashcards, 5 quiz, 8 glossary.
+Diễn giải hay, tự nhiên — không copy nguyên văn. CHỈ dùng nội dung bên dưới.
 
 NỘI DUNG:
 ${context.slice(0, 50000)}`;

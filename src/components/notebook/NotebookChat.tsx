@@ -10,6 +10,7 @@ import type { ChatMessage, Notebook, NotebookSource } from "@/lib/notebook/types
 import { sendMessage, getSuggestedQuestions } from "@/lib/notebook/chat";
 import { getSettings } from "@/lib/notebook/storage";
 import { isAiReady } from "@/lib/notebook/ai";
+import { renderMarkdownLite } from "@/components/notebook/markdown-lite";
 
 interface NotebookChatProps {
   notebookId: string;
@@ -17,26 +18,6 @@ interface NotebookChatProps {
   messages: ChatMessage[];
   onUserMessage: (msg: ChatMessage) => Promise<Notebook | null>;
   onNewMessage: (msg: ChatMessage) => Promise<void>;
-}
-
-function renderMarkdownLite(text: string): React.ReactNode[] {
-  return text.split("\n").map((line, i) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g);
-    return (
-      <span key={i}>
-        {i > 0 && <br />}
-        {parts.map((part, j) =>
-          part.startsWith("**") && part.endsWith("**") ? (
-            <strong key={j} className="text-slate-100 font-semibold">
-              {part.slice(2, -2)}
-            </strong>
-          ) : (
-            <span key={j}>{part}</span>
-          )
-        )}
-      </span>
-    );
-  });
 }
 
 export function NotebookChat({
@@ -154,7 +135,7 @@ export function NotebookChat({
                   : "bg-slate-900/80 border border-slate-800/60 text-slate-300"
               )}
             >
-              <div className="whitespace-pre-wrap">{renderMarkdownLite(msg.content)}</div>
+              <div className="space-y-0.5">{renderMarkdownLite(msg.content)}</div>
               {msg.citations && msg.citations.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-800/60 space-y-1.5">
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider">Trích dẫn</p>
@@ -182,7 +163,7 @@ export function NotebookChat({
             <div className="rounded-xl px-4 py-3 bg-slate-900/80 border border-slate-800/60">
               <p className="text-xs text-slate-500">
                 {aiActive
-                  ? "Gemini đang học từ tài liệu và soạn câu trả lời…"
+                  ? "Đang diễn giải nội dung tài liệu…"
                   : "Đang trích xuất từ tài liệu…"}
               </p>
             </div>

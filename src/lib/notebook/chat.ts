@@ -8,6 +8,7 @@ import {
 import { askGemini, isAiReady } from "./ai";
 import { getSettings } from "./storage";
 import { detectQueryIntent } from "./query-expand";
+import { polishAiResponse } from "./response-polish";
 
 const SUGGESTED_BY_INTENT: Record<string, string[]> = {
   default: [
@@ -40,26 +41,42 @@ function buildExtractiveAnswer(
   const citations = toCitations(results);
   const intent = detectQueryIntent(query);
 
-  if (intent === "summary" || intent === "concepts") {
-    const bullets = results.map((r, i) => {
-      const excerpt = r.chunk.text.slice(0, 350);
-      return `**${i + 1}.** [${r.source.name}] ${excerpt}${r.chunk.text.length > 350 ? "…" : ""}`;
+  if (intent === "summary") {
+    const intro =
+      "Dưới đây là các ý chính được trích từ tài liệu — bật Gemini AI để có bản diễn giải mượt mà hơn.";
+    const bullets = results.slice(0, 6).map((r, i) => {
+      const excerpt = r.chunk.text.slice(0, 280).replace(/\s+/g, " ").trim();
+      return `- **Ý ${i + 1}** [${i + 1}]: ${excerpt}${r.chunk.text.length > 280 ? "…" : ""}`;
     });
-    const title = intent === "summary" ? "Tóm tắt" : "Khái niệm chính";
     return {
-      content: `**${title}** (${results.length} đoạn từ tài liệu):\n\n${bullets.join("\n\n")}`,
+      content: polishAiResponse(`**Tóm tắt nội dung**\n\n${intro}\n\n${bullets.join("\n")}`),
+      citations,
+    };
+  }
+
+  if (intent === "concepts") {
+    const items = results.slice(0, 5).map((r, i) => {
+      const excerpt = r.chunk.text.slice(0, 240).replace(/\s+/g, " ").trim();
+      return `**Khái niệm ${i + 1}** [${i + 1}]\n${excerpt}${r.chunk.text.length > 240 ? "…" : ""}`;
+    });
+    return {
+      content: polishAiResponse(
+        `**Các khái niệm nổi bật trong tài liệu**\n\n${items.join("\n\n")}`
+      ),
       citations,
     };
   }
 
   const primary = results[0];
-  let answer = `**${primary.source.name}** [1]\n\n${primary.chunk.text}`;
+  const lead = primary.chunk.text.slice(0, 400).replace(/\s+/g, " ").trim();
+  let answer = `${lead}${primary.chunk.text.length > 400 ? "…" : ""} [1]`;
 
-  results.slice(1, 4).forEach((s, i) => {
-    answer += `\n\n---\n**[${i + 2}] ${s.source.name}:**\n${s.chunk.text.slice(0, 300)}${s.chunk.text.length > 300 ? "…" : ""}`;
+  results.slice(1, 3).forEach((s, i) => {
+    const excerpt = s.chunk.text.slice(0, 220).replace(/\s+/g, " ").trim();
+    answer += `\n\nNgoài ra, tài liệu còn đề cập [${i + 2}]: ${excerpt}${s.chunk.text.length > 220 ? "…" : ""}`;
   });
 
-  return { content: answer, citations };
+  return { content: polishAiResponse(answer), citations };
 }
 
 export async function sendMessage(
@@ -84,7 +101,8 @@ export async function sendMessage(
         settings.geminiApiKey,
         query,
         context,
-        history
+        history,
+        results.length
       );
     } catch (err) {
       const aiErr = err instanceof Error ? err.message : "Lỗi AI";

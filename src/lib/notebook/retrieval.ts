@@ -237,10 +237,10 @@ export function retrieveForStudy(
 export function buildContextFromChunks(results: ScoredChunk[]): string {
   return results
     .map((r, i) => {
-      const relevance = r.score > 0.8 ? "cao" : r.score > 0.2 ? "TB" : "tham khảo";
-      return `[${i + 1}] (${r.source.name} · độ liên quan: ${relevance})\n${r.chunk.text}`;
+      const text = r.chunk.text.replace(/\s+/g, " ").trim();
+      return `▸ Nguồn [${i + 1}] — "${r.source.name}"\n${text}`;
     })
-    .join("\n\n---\n\n")
+    .join("\n\n")
     .slice(0, 52000);
 }
 
