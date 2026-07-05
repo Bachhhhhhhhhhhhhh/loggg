@@ -7,6 +7,7 @@ import {
   Layers,
   HelpCircle,
   GraduationCap,
+  Route,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
@@ -16,11 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { NotebookInsights } from "@/lib/notebook/types";
 
-type StudioTab = "summary" | "outline" | "flashcards" | "quiz" | "glossary";
+type StudioTab = "summary" | "outline" | "studyguide" | "flashcards" | "quiz" | "glossary";
 
 const tabs: { id: StudioTab; label: string; icon: typeof BookOpen }[] = [
   { id: "summary", label: "Tóm tắt", icon: BookOpen },
   { id: "outline", label: "Dàn ý", icon: ListTree },
+  { id: "studyguide", label: "Lộ trình", icon: Route },
   { id: "flashcards", label: "Flashcard", icon: Layers },
   { id: "quiz", label: "Quiz", icon: HelpCircle },
   { id: "glossary", label: "Thuật ngữ", icon: GraduationCap },
@@ -130,6 +132,22 @@ export function StudioPanel({ insights, loading, onGenerate }: StudioPanelProps)
               </div>
             </div>
           </div>
+        )}
+
+        {insights && tab === "studyguide" && (
+          <ol className="space-y-3">
+            {(insights.studyGuide ?? insights.outline).map((step, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 rounded-lg border border-teal-500/20 bg-teal-500/5 p-3"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[11px] font-bold text-teal-400">
+                  {i + 1}
+                </span>
+                <p className="text-xs text-slate-300 pt-1 leading-relaxed">{step}</p>
+              </li>
+            ))}
+          </ol>
         )}
 
         {insights && tab === "outline" && (

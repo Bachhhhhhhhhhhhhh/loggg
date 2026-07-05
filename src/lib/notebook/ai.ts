@@ -84,7 +84,7 @@ function createModel(
       temperature: jsonMode ? 0.35 : 0.62,
       topP: 0.92,
       topK: 40,
-      maxOutputTokens: jsonMode ? 8192 : 4096,
+      maxOutputTokens: jsonMode ? 16384 : 8192,
       ...(jsonMode ? { responseMimeType: "application/json" } : {}),
     },
   });
@@ -165,13 +165,28 @@ export async function askGemini(
   question: string,
   context: string,
   history: ChatMessage[],
-  sourceCount = 8
+  sourceCount = 8,
+  docOverview?: string,
+  onStream?: (partial: string) => void
 ): Promise<string> {
-  const userMessage = buildChatUserMessage(question, context, sourceCount);
+  const userMessage = buildChatUserMessage(question, context, sourceCount, docOverview);
 
   return tryModels(apiKey, async (model) => {
     const chatHistory = buildChatHistory(history.slice(0, -1));
     const chat = model.startChat({ history: chatHistory });
+
+    if (onStream) {
+      const result = await chat.sendMessageStream(userMessage);
+      let full = "";
+      for await (const chunk of result.stream) {
+        const piece = chunk.text();
+        full += piece;
+        onStream(polishAiResponse(full));
+      }
+      if (!full.trim()) throw new Error("AI trả về rỗng");
+      return polishAiResponse(full);
+    }
+
     const result = await chat.sendMessage(userMessage);
     const text = result.response.text();
     if (!text?.trim()) throw new Error("AI trả về rỗng");
@@ -182,6 +197,8 @@ export async function askGemini(
 export interface AiInsightsResult {
   summary: string;
   outline: string[];
+  studyGuide: string[];
+  suggestedQuestions: string[];
   keyTopics: { topic: string; detail: string }[];
   flashcards: { front: string; back: string }[];
   quiz: { question: string; options: string[]; correctIndex: number; explanation: string }[];
@@ -192,6 +209,10 @@ function normalizeInsights(parsed: Record<string, unknown>): AiInsightsResult {
   return {
     summary: polishSummary(String(parsed.summary ?? "")),
     outline: Array.isArray(parsed.outline) ? parsed.outline.map(String) : [],
+    studyGuide: Array.isArray(parsed.studyGuide) ? parsed.studyGuide.map(String) : [],
+    suggestedQuestions: Array.isArray(parsed.suggestedQuestions)
+      ? parsed.suggestedQuestions.map(String)
+      : [],
     keyTopics: Array.isArray(parsed.keyTopics)
       ? parsed.keyTopics.map((t) => {
           const item = t as { topic?: string; detail?: string };
@@ -243,23 +264,25 @@ export async function generateAiInsights(
   context: string,
   sourceNames: string[]
 ): Promise<AiInsightsResult> {
-  const prompt = `Phân tích tài liệu Logistics/SCM từ ${sourceNames.length} file: ${sourceNames.join(", ")}.
+  const prompt = `Phân tích chuyên sâu Logistics/SCM — ${sourceNames.length} file: ${sourceNames.join(", ")}.
 
-Trả về JSON:
+JSON:
 {
-  "summary": "6-10 câu văn xuôi mạch lạc, tóm tắt toàn cảnh như giảng viên đang giới thiệu bài",
-  "outline": ["mục dàn ý — câu hoàn chỉnh, không phải cụm từ"],
-  "keyTopics": [{"topic": "chủ đề", "detail": "2 câu giải thích tự nhiên, dễ hiểu"}],
-  "flashcards": [{"front": "câu hỏi gợi mở", "back": "đáp án 1-3 câu mượt mà"}],
-  "quiz": [{"question": "câu hỏi", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "giải thích 2-4 câu như thầy giáo"}],
-  "glossary": [{"term": "ABC", "definition": "định nghĩa câu hoàn chỉnh"}]
+  "summary": "8-12 câu văn xuôi toàn cảnh",
+  "outline": ["dàn ý câu hoàn chỉnh"],
+  "studyGuide": ["bước 1 học...", "bước 2..."],
+  "suggestedQuestions": ["câu hỏi ôn tập 1", "..."],
+  "keyTopics": [{"topic": "chủ đề", "detail": "2-3 câu"}],
+  "flashcards": [{"front": "?", "back": "đáp án 1-3 câu"}],
+  "quiz": [{"question": "?", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "2-4 câu"}],
+  "glossary": [{"term": "X", "definition": "định nghĩa đầy đủ"}]
 }
 
-Tạo ít nhất: 6 keyTopics, 10 flashcards, 5 quiz, 8 glossary.
-Diễn giải hay, tự nhiên — không copy nguyên văn. CHỈ dùng nội dung bên dưới.
+Tối thiểu: 8 keyTopics, 15 flashcards, 8 quiz, 12 glossary, 6 studyGuide, 8 suggestedQuestions.
+CHỈ dùng nội dung bên dưới.
 
 NỘI DUNG:
-${context.slice(0, 50000)}`;
+${context.slice(0, 85000)}`;
 
   const genAI = getClient(apiKey);
   let lastError: Error | null = null;

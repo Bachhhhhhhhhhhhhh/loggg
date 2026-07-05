@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react";
+import { useRef, useEffect, useState, useMemo } from "react";
+import { Send, Bot, User, Sparkles, Loader2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,15 +29,20 @@ export function NotebookChat({
 }: NotebookChatProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasSources = sources.some((s) => s.enabled && s.chunks.length > 0);
-  const suggestions = getSuggestedQuestions();
+  const suggestions = useMemo(
+    () => getSuggestedQuestions(sources, notebookId),
+    [sources, notebookId]
+  );
   const settings = getSettings();
   const aiActive = isAiReady(settings.geminiApiKey, settings.useAi);
+  const chunkTotal = sources.reduce((n, s) => n + s.chunks.length, 0);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, streamingText]);
 
   const handleSend = async (text: string) => {
     const query = text.trim();
@@ -52,13 +57,20 @@ export function NotebookChat({
 
     setInput("");
     setLoading(true);
+    setStreamingText(null);
 
     try {
       const updatedNotebook = await onUserMessage(userMsg);
       const history = updatedNotebook?.messages ?? [...messages, userMsg];
-      const reply = await sendMessage(query, sources, history, notebookId);
+      const reply = await sendMessage(query, sources, history, notebookId, {
+        onStream: aiActive
+          ? (partial) => setStreamingText(partial)
+          : undefined,
+      });
+      setStreamingText(null);
       await onNewMessage(reply);
     } catch {
+      setStreamingText(null);
       await onNewMessage({
         id: createMsgId("err"),
         role: "assistant",
@@ -76,25 +88,31 @@ export function NotebookChat({
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-teal-400" />
           <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            Hỏi đáp từ tài liệu
+            Hỏi đáp Ultra AI
           </h2>
           <Badge variant={aiActive ? "success" : "teal"} className="text-[9px] ml-auto">
-            {aiActive ? "Gemini AI" : "Trích xuất"}
+            {aiActive ? (
+              <span className="flex items-center gap-1">
+                <Zap className="h-2.5 w-2.5" /> Gemini Ultra
+              </span>
+            ) : (
+              "Hybrid local"
+            )}
           </Badge>
         </div>
         <p className="text-[10px] text-slate-600 mt-0.5">
           {hasSources
-            ? `${sources.filter((s) => s.enabled).length} nguồn · ${sources.reduce((n, s) => n + s.chunks.length, 0)} chunks`
+            ? `${sources.filter((s) => s.enabled).length} nguồn · ${chunkTotal} chunks · BM25+semantic`
             : "Upload hoặc dán văn bản trước"}
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !streamingText && (
           <div className="text-center py-6">
             <Bot className="h-12 w-12 mx-auto text-slate-700 mb-3" />
             <p className="text-sm text-slate-400 font-medium">
-              {hasSources ? "Đặt câu hỏi về tài liệu" : "Chưa có tài liệu"}
+              {hasSources ? "Đặt câu hỏi — AI học từ tài liệu của bạn" : "Chưa có tài liệu"}
             </p>
             {hasSources && (
               <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-lg mx-auto">
@@ -102,7 +120,7 @@ export function NotebookChat({
                   <button
                     key={q}
                     onClick={() => handleSend(q)}
-                    className="text-[11px] px-3 py-1.5 rounded-full border border-slate-700/80 bg-slate-900/60 text-slate-400 hover:text-blue-400 hover:border-blue-500/40 transition-colors"
+                    className="text-[11px] px-3 py-1.5 rounded-full border border-slate-700/80 bg-slate-900/60 text-slate-400 hover:text-blue-400 hover:border-blue-500/40 transition-colors text-left"
                   >
                     {q}
                   </button>
@@ -155,7 +173,19 @@ export function NotebookChat({
           </div>
         ))}
 
-        {loading && (
+        {streamingText && (
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/20">
+              <Bot className="h-4 w-4 text-teal-400" />
+            </div>
+            <div className="flex-1 max-w-[85%] rounded-xl px-4 py-3 bg-slate-900/80 border border-teal-500/20 text-slate-300">
+              <div className="space-y-0.5">{renderMarkdownLite(streamingText)}</div>
+              <span className="inline-block w-1.5 h-4 bg-teal-400 animate-pulse ml-0.5 align-middle" />
+            </div>
+          </div>
+        )}
+
+        {loading && !streamingText && (
           <div className="flex gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/20">
               <Loader2 className="h-4 w-4 text-teal-400 animate-spin" />
@@ -163,8 +193,8 @@ export function NotebookChat({
             <div className="rounded-xl px-4 py-3 bg-slate-900/80 border border-slate-800/60">
               <p className="text-xs text-slate-500">
                 {aiActive
-                  ? "Đang diễn giải nội dung tài liệu…"
-                  : "Đang trích xuất từ tài liệu…"}
+                  ? "Hybrid retrieval → đang diễn giải…"
+                  : "Đang tìm kiếm BM25 + semantic…"}
               </p>
             </div>
           </div>
@@ -183,7 +213,7 @@ export function NotebookChat({
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={hasSources ? "Hỏi về nội dung tài liệu…" : "Thêm tài liệu trước"}
+            placeholder={hasSources ? "Hỏi bất kỳ điều gì về tài liệu…" : "Thêm tài liệu trước"}
             disabled={!hasSources || loading}
             className="flex-1 bg-slate-900/60 border-slate-800"
           />

@@ -81,8 +81,8 @@ function WorkspaceContent() {
         });
         setTrainingStatus(
           result.usedAi
-            ? `✓ Đã học ${result.sourceCount} nguồn · ${result.chunkCount} chunks (Gemini)`
-            : `✓ Đã phân tích ${result.sourceCount} nguồn (cục bộ)`
+            ? `✓ Ultra AI: ${result.sourceCount} nguồn · ${result.chunkCount} chunks · hybrid index`
+            : `✓ Đã index ${result.chunkCount} chunks (BM25+semantic)`
         );
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Lỗi huấn luyện";

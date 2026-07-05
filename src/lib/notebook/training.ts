@@ -4,6 +4,7 @@ import { generateInsights } from "./insights";
 import { generateAiInsights, isAiReady } from "./ai";
 import { buildContextFromChunks, buildTrainingContext } from "./retrieval";
 import { buildSourceIndex, invalidateIndex } from "./retrieval-index";
+import { getDynamicSuggestions } from "./source-profile";
 import { getSettings } from "./storage";
 
 export interface TrainingResult {
@@ -18,8 +19,7 @@ export function prepareNotebookIndex(
   notebookId: string,
   sources: NotebookSource[]
 ): number {
-  const index = buildSourceIndex(notebookId, sources);
-  return index.totalChunks;
+  return buildSourceIndex(notebookId, sources).totalChunks;
 }
 
 export function invalidateNotebookIndex(notebookId: string): void {
@@ -41,6 +41,12 @@ export async function trainFromSources(
   prepareNotebookIndex(notebookId, sources);
 
   let insights = generateInsights(enabled);
+  insights = {
+    ...insights,
+    suggestedQuestions: getDynamicSuggestions(enabled, 10),
+    studyGuide: insights.outline.slice(0, 6),
+  };
+
   const settings = getSettings();
   let usedAi = false;
   let error: string | undefined;
@@ -56,6 +62,10 @@ export async function trainFromSources(
 
       if (ai.summary) insights = { ...insights, summary: ai.summary };
       if (ai.outline.length) insights = { ...insights, outline: ai.outline };
+      if (ai.studyGuide?.length) insights = { ...insights, studyGuide: ai.studyGuide };
+      if (ai.suggestedQuestions?.length) {
+        insights = { ...insights, suggestedQuestions: ai.suggestedQuestions };
+      }
       if (ai.keyTopics.length) insights = { ...insights, keyTopics: ai.keyTopics };
       if (ai.flashcards.length) {
         insights = {

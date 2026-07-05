@@ -1,7 +1,9 @@
 import type { NotebookSource, TextChunk, Citation } from "./types";
 import { tokenize } from "./retrieval-utils";
 import { expandQuery, detectQueryIntent } from "./query-expand";
-import { getSourceIndex, type IndexedChunk } from "./retrieval-index";
+import { getSourceIndex, buildSourceIndex, type IndexedChunk, type SourceIndex } from "./retrieval-index";
+import { bm25Score } from "./bm25";
+import { embedText, cosineSimilarity } from "./semantic-embed";
 
 export interface ScoredChunk {
   chunk: TextChunk;
@@ -17,12 +19,10 @@ function buildBigrams(tokens: string[]): string[] {
   return bigrams;
 }
 
-function scoreChunk(
+function keywordScore(
   queryTokens: string[],
   queryBigrams: string[],
   item: IndexedChunk,
-  docFreq: Map<string, number>,
-  totalDocs: number,
   rawQuery: string
 ): number {
   const { tokens, chunk } = item;
@@ -33,31 +33,51 @@ function scoreChunk(
   const lower = chunk.text.toLowerCase();
   const normalizedQuery = rawQuery.toLowerCase().trim();
 
-  if (normalizedQuery.length > 4 && lower.includes(normalizedQuery)) {
-    score += 3.5;
+  if (normalizedQuery.length > 4 && lower.includes(normalizedQuery)) score += 4;
+  if (chunk.heading && normalizedQuery.includes(chunk.heading.toLowerCase().slice(0, 20))) {
+    score += 2.5;
   }
 
   for (const qt of queryTokens) {
     const termFreq = tf.get(qt) ?? 0;
     if (!termFreq) continue;
-    const idf = Math.log(1 + totalDocs / ((docFreq.get(qt) ?? 0) + 1));
-    score += (termFreq / Math.max(tokens.length, 1)) * idf * 2.8;
-    if (lower.includes(qt)) score += 0.9;
+    score += (termFreq / Math.max(tokens.length, 1)) * 3;
+    if (lower.includes(qt)) score += 1;
   }
 
   const itemBigramSet = new Set(item.bigrams);
   for (const bg of queryBigrams) {
-    if (itemBigramSet.has(bg)) score += 1.4;
+    if (itemBigramSet.has(bg)) score += 1.6;
   }
 
   return score;
 }
 
+function rrfFuse(rankings: ScoredChunk[][], limit: number, k = 60): ScoredChunk[] {
+  const scores = new Map<string, { item: ScoredChunk; rrf: number }>();
+
+  for (const list of rankings) {
+    list.forEach((item, rank) => {
+      const prev = scores.get(item.chunk.id);
+      const rrf = 1 / (k + rank + 1);
+      if (prev) {
+        prev.rrf += rrf;
+      } else {
+        scores.set(item.chunk.id, { item, rrf });
+      }
+    });
+  }
+
+  return [...scores.values()]
+    .sort((a, b) => b.rrf - a.rrf)
+    .slice(0, limit + 6)
+    .map(({ item, rrf }) => ({ ...item, score: rrf }));
+}
+
 function seedChunks(sources: NotebookSource[], perSource = 2): ScoredChunk[] {
   const seeded: ScoredChunk[] = [];
   for (const source of sources.filter((s) => s.enabled)) {
-    const pick = source.chunks.slice(0, perSource);
-    for (const chunk of pick) {
+    for (const chunk of source.chunks.slice(0, perSource)) {
       if (!seeded.some((s) => s.chunk.id === chunk.id)) {
         seeded.push({ chunk, source, score: 0.25 });
       }
@@ -69,7 +89,7 @@ function seedChunks(sources: NotebookSource[], perSource = 2): ScoredChunk[] {
 function diversifyResults(results: ScoredChunk[], limit: number): ScoredChunk[] {
   const picked: ScoredChunk[] = [];
   const perSource = new Map<string, number>();
-  const maxPerSource = Math.max(2, Math.ceil(limit / 3));
+  const maxPerSource = Math.max(3, Math.ceil(limit / 2.5));
 
   for (const item of results) {
     const count = perSource.get(item.source.id) ?? 0;
@@ -83,16 +103,14 @@ function diversifyResults(results: ScoredChunk[], limit: number): ScoredChunk[] 
   if (picked.length < limit) {
     for (const item of results) {
       if (picked.length >= limit) break;
-      if (!picked.some((p) => p.chunk.id === item.chunk.id)) {
-        picked.push(item);
-      }
+      if (!picked.some((p) => p.chunk.id === item.chunk.id)) picked.push(item);
     }
   }
 
   return picked;
 }
 
-function mmrRerank(results: ScoredChunk[], limit: number, lambda = 0.72): ScoredChunk[] {
+function mmrRerank(results: ScoredChunk[], limit: number, lambda = 0.7): ScoredChunk[] {
   if (results.length <= limit) return results;
 
   const picked: ScoredChunk[] = [];
@@ -106,15 +124,13 @@ function mmrRerank(results: ScoredChunk[], limit: number, lambda = 0.72): Scored
     for (let i = 0; i < remaining.length; i++) {
       const candidate = remaining[i];
       const relevance = candidate.score / maxScore;
-
       let maxSim = 0;
       for (const p of picked) {
-        const sameSource = p.source.id === candidate.source.id ? 0.35 : 0;
+        const sameSource = p.source.id === candidate.source.id ? 0.3 : 0;
         const overlap =
-          p.chunk.text.slice(0, 80) === candidate.chunk.text.slice(0, 80) ? 0.5 : 0;
+          p.chunk.text.slice(0, 80) === candidate.chunk.text.slice(0, 80) ? 0.45 : 0;
         maxSim = Math.max(maxSim, sameSource + overlap);
       }
-
       const mmr = lambda * relevance - (1 - lambda) * maxSim;
       if (mmr > bestMmr) {
         bestMmr = mmr;
@@ -129,7 +145,7 @@ function mmrRerank(results: ScoredChunk[], limit: number, lambda = 0.72): Scored
   return picked;
 }
 
-function scoreAllChunks(
+function hybridRetrieve(
   query: string,
   sources: NotebookSource[],
   notebookId?: string
@@ -137,92 +153,95 @@ function scoreAllChunks(
   const active = sources.filter((s) => s.enabled && s.chunks.length > 0);
   if (!active.length) return [];
 
-  const index = notebookId
+  const index: SourceIndex = notebookId
     ? getSourceIndex(notebookId, sources)
-    : null;
+    : buildSourceIndex(`_query_${active.map((s) => s.id).join("_")}`, active);
 
   const queries = expandQuery(query);
-  const allTokens = [...new Set(queries.flatMap((q) => tokenize(q)))];
-  const allBigrams = buildBigrams(allTokens);
+  const queryTokens = [...new Set(queries.flatMap((q) => tokenize(q)))];
+  const queryBigrams = buildBigrams(queryTokens);
+  const queryVector = embedText(queries.join(" "));
   const intent = detectQueryIntent(query);
-  const broad = intent === "summary" || intent === "concepts";
 
-  const chunksToScore: IndexedChunk[] = index
-    ? index.chunks
-    : active.flatMap((source) =>
-        source.chunks.map((chunk) => ({
-          chunk,
-          source,
-          tokens: tokenize(chunk.text),
-          bigrams: buildBigrams(tokenize(chunk.text)),
-        }))
-      );
+  const bm25Rank: ScoredChunk[] = [];
+  const kwRank: ScoredChunk[] = [];
+  const semRank: ScoredChunk[] = [];
 
-  const docFreq = index?.docFreq ?? new Map<string, number>();
-  if (!index) {
-    for (const item of chunksToScore) {
-      for (const t of new Set(item.tokens)) {
-        docFreq.set(t, (docFreq.get(t) ?? 0) + 1);
-      }
-    }
-  }
-
-  const totalDocs = chunksToScore.length;
-  const scored: ScoredChunk[] = [];
-
-  for (const item of chunksToScore) {
-    let score = 0;
+  for (const item of index.chunks) {
+    let bm = 0;
     for (const q of queries) {
-      const qTokens = tokenize(q);
-      score += scoreChunk(
-        qTokens,
-        buildBigrams(qTokens),
+      bm += bm25Score(
+        tokenize(q),
         item,
-        docFreq,
-        totalDocs,
-        q
+        index.docFreq,
+        index.totalChunks,
+        index.avgDocLen
       );
     }
-    if (intent === "summary" && item.chunk.index < 3) score += 0.2;
+
+    let kw = 0;
+    for (const q of queries) {
+      kw += keywordScore(tokenize(q), buildBigrams(tokenize(q)), item, q);
+    }
+
+    const sem = cosineSimilarity(queryVector, item.vector) * 10;
+
+    if (intent === "summary" && item.chunk.index < 4) {
+      bm += 0.3;
+      kw += 0.2;
+    }
     if (intent === "concepts" && /định nghĩa|là|refers|means|:/i.test(item.chunk.text)) {
-      score += 0.15;
+      bm += 0.25;
     }
-    if (score > 0 || broad) {
-      scored.push({ chunk: item.chunk, source: item.source, score: score || 0.01 });
-    }
+
+    if (bm > 0) bm25Rank.push({ chunk: item.chunk, source: item.source, score: bm });
+    if (kw > 0) kwRank.push({ chunk: item.chunk, source: item.source, score: kw });
+    if (sem > 0.1) semRank.push({ chunk: item.chunk, source: item.source, score: sem });
   }
 
-  return scored.sort((a, b) => b.score - a.score);
+  bm25Rank.sort((a, b) => b.score - a.score);
+  kwRank.sort((a, b) => b.score - a.score);
+  semRank.sort((a, b) => b.score - a.score);
+
+  const broad = intent === "summary" || intent === "concepts";
+  if (!bm25Rank.length && broad) {
+    return index.chunks.map((item) => ({
+      chunk: item.chunk,
+      source: item.source,
+      score: 0.01,
+    }));
+  }
+
+  return rrfFuse(
+    [bm25Rank.slice(0, 40), kwRank.slice(0, 40), semRank.slice(0, 40)],
+    50
+  );
 }
 
 export function retrieveChunks(
   query: string,
   sources: NotebookSource[],
-  limit = 10,
+  limit = 12,
   notebookId?: string
 ): ScoredChunk[] {
   const active = sources.filter((s) => s.enabled && s.chunks.length > 0);
   if (!active.length) return [];
 
-  let results = scoreAllChunks(query, sources, notebookId);
+  let results = hybridRetrieve(query, sources, notebookId);
 
-  if (results.length < 4) {
+  if (results.length < 6) {
     const existing = new Set(results.map((r) => r.chunk.id));
-    for (const seed of seedChunks(active, 3)) {
+    for (const seed of seedChunks(active, 4)) {
       if (!existing.has(seed.chunk.id)) results.push(seed);
     }
     results = results.sort((a, b) => b.score - a.score);
   }
 
-  if (results.length === 0) {
-    return seedChunks(active, 2).slice(0, limit);
-  }
+  if (!results.length) return seedChunks(active, 3).slice(0, limit);
 
-  const diversified = diversifyResults(results, limit + 4);
-  return mmrRerank(diversified, limit);
+  return mmrRerank(diversifyResults(results, limit + 6), limit);
 }
 
-/** Retrieval tối ưu cho Gemini — nhiều ngữ cảnh, đa dạng nguồn */
 export function retrieveForStudy(
   query: string,
   sources: NotebookSource[],
@@ -230,7 +249,7 @@ export function retrieveForStudy(
 ): ScoredChunk[] {
   const intent = detectQueryIntent(query);
   const limit =
-    intent === "summary" ? 16 : intent === "concepts" ? 14 : intent === "compare" ? 12 : 10;
+    intent === "summary" ? 24 : intent === "concepts" ? 20 : intent === "compare" ? 18 : 16;
   return retrieveChunks(query, sources, limit, notebookId);
 }
 
@@ -238,18 +257,19 @@ export function buildContextFromChunks(results: ScoredChunk[]): string {
   return results
     .map((r, i) => {
       const text = r.chunk.text.replace(/\s+/g, " ").trim();
-      return `▸ Nguồn [${i + 1}] — "${r.source.name}"\n${text}`;
+      const tag = r.chunk.heading ? ` — ${r.chunk.heading}` : "";
+      return `▸ [${i + 1}] "${r.source.name}"${tag}\n${text}`;
     })
     .join("\n\n")
-    .slice(0, 52000);
+    .slice(0, 96000);
 }
 
 export function toCitations(results: ScoredChunk[]): Citation[] {
-  return results.slice(0, 8).map((r) => ({
+  return results.slice(0, 10).map((r) => ({
     sourceId: r.source.id,
     sourceName: r.source.name,
     chunkIndex: r.chunk.index,
-    excerpt: r.chunk.text.slice(0, 280) + (r.chunk.text.length > 280 ? "…" : ""),
+    excerpt: r.chunk.text.slice(0, 300) + (r.chunk.text.length > 300 ? "…" : ""),
   }));
 }
 
@@ -257,10 +277,9 @@ export function getAllActiveChunks(sources: NotebookSource[]): TextChunk[] {
   return sources.filter((s) => s.enabled).flatMap((s) => s.chunks);
 }
 
-/** Lấy đoạn đại diện từ mỗi nguồn cho Studio / insights */
 export function sampleChunksPerSource(
   sources: NotebookSource[],
-  perSource = 4
+  perSource = 6
 ): ScoredChunk[] {
   const results: ScoredChunk[] = [];
   for (const source of sources.filter((s) => s.enabled)) {
@@ -280,7 +299,6 @@ export function sampleChunksPerSource(
   return results;
 }
 
-/** Ngữ cảnh rộng cho huấn luyện Studio — đầu/cuối/giữa mỗi nguồn */
 export function buildTrainingContext(
   sources: NotebookSource[],
   notebookId?: string
@@ -291,11 +309,16 @@ export function buildTrainingContext(
   if (notebookId) getSourceIndex(notebookId, sources);
 
   const results: ScoredChunk[] = [];
-  const summaryQuery = "tóm tắt nội dung chính khái niệm logistics supply chain";
+  const queries = [
+    "tóm tắt nội dung chính logistics supply chain",
+    "khái niệm thuật ngữ định nghĩa quan trọng",
+    "ứng dụng thực tiễn case study best practice",
+  ];
 
   for (const source of active) {
-    const sourceResults = retrieveChunks(summaryQuery, [source], 6, notebookId);
-    results.push(...sourceResults.slice(0, 5));
+    for (const q of queries) {
+      results.push(...retrieveChunks(q, [source], 4, notebookId));
+    }
   }
 
   const seen = new Set<string>();
@@ -305,9 +328,7 @@ export function buildTrainingContext(
     return true;
   });
 
-  if (unique.length < 8) {
-    unique.push(...sampleChunksPerSource(active, 3));
-  }
+  if (unique.length < 12) unique.push(...sampleChunksPerSource(active, 5));
 
-  return unique.slice(0, 28);
+  return unique.slice(0, 48);
 }

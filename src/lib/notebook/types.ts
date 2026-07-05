@@ -6,6 +6,7 @@ export interface TextChunk {
   index: number;
   text: string;
   wordCount: number;
+  heading?: string;
 }
 
 export interface NotebookSource {
@@ -55,6 +56,8 @@ export interface NotebookInsights {
   outline: string[];
   keyTopics: { topic: string; detail: string }[];
   summary: string;
+  studyGuide?: string[];
+  suggestedQuestions?: string[];
   flashcards: Flashcard[];
   quiz: QuizQuestion[];
   glossary: { term: string; definition: string }[];
@@ -84,7 +87,7 @@ export interface NotebookSettings {
 export const DEFAULT_SETTINGS: NotebookSettings = {
   geminiApiKey: "",
   useAi: false,
-  chunkSize: 900,
+  chunkSize: 1100,
 };
 
 export const SUPPORTED_EXTENSIONS = [
