@@ -234,7 +234,7 @@ export default function NotebookHubPage() {
                   </p>
 
                   <Button asChild className="mt-3 w-full" size="sm">
-                    <Link href={`/notebook/workspace?id=${nb.id}`}>
+                    <Link href={`/notebook/workspace/?id=${nb.id}`}>
                       Mở workspace
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
