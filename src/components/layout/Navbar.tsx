@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
-import { Search, Menu, X, TrendingUp, User, Clock, BookMarked } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X, TrendingUp, User, Clock, BookMarked } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { MarketTicker } from "./MarketTicker";
-import { getAllLessons } from "@/data/modules";
-import { knowledgeBase } from "@/data/knowledge-base";
-import { incoterms } from "@/data/incoterms";
+import { CommandPaletteTrigger } from "./CommandPalette";
+import { useCommandPaletteContext } from "./CommandPaletteContext";
 import { getCompletionStats } from "@/lib/progress";
 
 const navItems = [
@@ -50,115 +48,12 @@ function LiveClock() {
   );
 }
 
-function SearchDropdown({
-  query,
-  open,
-  onNavigate,
-}: {
-  query: string;
-  open: boolean;
-  onNavigate?: () => void;
-}) {
-  const results = useMemo(() => {
-    if (query.length <= 1) return { lessons: [], knowledge: [], incotermResults: [] };
-    const lower = query.toLowerCase();
-    const lessons = getAllLessons()
-      .filter(
-        (l) =>
-          l.title.toLowerCase().includes(lower) ||
-          l.moduleTitle.toLowerCase().includes(lower)
-      )
-      .slice(0, 4);
-    const knowledge = knowledgeBase
-      .filter(
-        (k) =>
-          k.title.toLowerCase().includes(lower) ||
-          k.subtitle.toLowerCase().includes(lower) ||
-          k.category.toLowerCase().includes(lower)
-      )
-      .slice(0, 4);
-    const incotermResults = incoterms
-      .filter(
-        (t) =>
-          t.code.toLowerCase().includes(lower) ||
-          t.fullName.toLowerCase().includes(lower) ||
-          t.summary.toLowerCase().includes(lower)
-      )
-      .slice(0, 4);
-    return { lessons, knowledge, incotermResults };
-  }, [query]);
-
-  if (!open || (results.lessons.length === 0 && results.knowledge.length === 0 && results.incotermResults.length === 0)) {
-    return null;
-  }
-
-  return (
-    <div className="absolute top-full mt-1.5 w-80 rounded-xl border border-slate-700/60 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/40 z-50 overflow-hidden">
-      {results.lessons.length > 0 && (
-        <>
-          <div className="px-3 py-2 border-b border-slate-800/60">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Bài học</p>
-          </div>
-          {results.lessons.map((r) => (
-            <Link
-              key={`${r.moduleId}-${r.id}`}
-              href={`/learn/${r.moduleId}/${r.id}`}
-              onClick={onNavigate}
-              className="block px-3 py-2.5 hover:bg-slate-800/60 transition-colors border-b border-slate-800/30"
-            >
-              <p className="text-xs text-slate-200 font-medium">{r.title}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{r.moduleTitle}</p>
-            </Link>
-          ))}
-        </>
-      )}
-      {results.knowledge.length > 0 && (
-        <>
-          <div className="px-3 py-2 border-b border-slate-800/60">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Tri thức</p>
-          </div>
-          {results.knowledge.map((k) => (
-            <Link
-              key={k.id}
-              href={`/resources/${k.id}`}
-              onClick={onNavigate}
-              className="block px-3 py-2.5 hover:bg-slate-800/60 transition-colors border-b border-slate-800/30 last:border-0"
-            >
-              <p className="text-xs text-slate-200 font-medium">{k.title}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{k.category}</p>
-            </Link>
-          ))}
-        </>
-      )}
-      {results.incotermResults.length > 0 && (
-        <>
-          <div className="px-3 py-2 border-b border-slate-800/60">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Incoterms</p>
-          </div>
-          {results.incotermResults.map((t) => (
-            <Link
-              key={t.code}
-              href={`/incoterms/${t.code.toLowerCase()}/`}
-              onClick={onNavigate}
-              className="block px-3 py-2.5 hover:bg-slate-800/60 transition-colors border-b border-slate-800/30 last:border-0"
-            >
-              <p className="text-xs text-slate-200 font-medium font-mono">{t.code} — {t.fullName}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Nhóm {t.group}</p>
-            </Link>
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { percent } = getCompletionStats();
+  const { setOpen: setCommandOpen } = useCommandPaletteContext();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -228,21 +123,7 @@ export function Navbar() {
             <div className="flex items-center gap-2.5">
               <LiveClock />
 
-              <div className="relative hidden md:block">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600" />
-                <Input
-                  placeholder="Tìm bài học, tri thức..."
-                  className="w-48 pl-8 h-8 text-xs bg-slate-900/50 border-slate-800"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSearchOpen(true);
-                  }}
-                  onFocus={() => setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
-                />
-                <SearchDropdown query={searchQuery} open={searchOpen} />
-              </div>
+              <CommandPaletteTrigger onClick={() => setCommandOpen(true)} />
 
               <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800/60">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-teal-500/20 border border-slate-700">
@@ -269,27 +150,16 @@ export function Navbar() {
 
           {mobileOpen && (
             <div className="lg:hidden border-t border-slate-800/60 py-2 pb-3 space-y-2">
-              <div className="relative px-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600" />
-                <Input
-                  placeholder="Tìm bài học, tri thức..."
-                  className="w-full pl-8 h-9 text-xs bg-slate-900/50 border-slate-800"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSearchOpen(true);
-                  }}
-                  onFocus={() => setSearchOpen(true)}
-                />
-                <SearchDropdown
-                  query={searchQuery}
-                  open={searchOpen}
-                  onNavigate={() => {
-                    setSearchOpen(false);
-                    closeMobile();
-                  }}
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCommandOpen(true);
+                  closeMobile();
+                }}
+                className="w-full mx-1 flex items-center gap-2 h-9 px-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-500"
+              >
+                Tìm kiếm nhanh (⌘K)
+              </button>
               <nav className="space-y-0.5">
                 {navItems.map((item) => (
                   <Link
