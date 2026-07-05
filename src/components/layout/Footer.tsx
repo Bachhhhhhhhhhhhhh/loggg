@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { TrendingUp, BookOpen, Wrench, Database, Globe } from "lucide-react";
+import { TrendingUp, BookOpen, Wrench, Database, Globe, BookMarked } from "lucide-react";
 import { getCompletionStats } from "@/lib/progress";
 
 const footerLinks = [
+  { href: "/notebook", label: "Notebook", icon: BookMarked },
   { href: "/learn", label: "Học tập", icon: BookOpen },
   { href: "/tools", label: "Công cụ", icon: Wrench },
   { href: "/roadmap", label: "Lộ trình", icon: TrendingUp },

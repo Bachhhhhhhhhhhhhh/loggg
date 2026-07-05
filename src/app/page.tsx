@@ -10,6 +10,9 @@ import {
   Zap,
   Target,
   Layers,
+  BookMarked,
+  Upload,
+  MessageSquare,
 } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MarketWatchTable } from "@/components/dashboard/MarketWatchTable";
@@ -44,7 +47,54 @@ export default function HomePage() {
         badge="DEMO DATA"
         badgeVariant="success"
         icon={<BarChart3 className="h-5 w-5" />}
+        actions={
+          <Button size="sm" variant="outline" asChild className="border-teal-500/30 text-teal-400 hover:bg-teal-500/10">
+            <Link href="/notebook">
+              <BookMarked className="h-3.5 w-3.5" />
+              Notebook mới
+            </Link>
+          </Button>
+        }
       />
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-2xl border border-teal-500/20"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-950/40 via-slate-900/80 to-blue-950/30" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />
+        <div className="relative z-10 p-5 sm:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 border border-teal-500/30">
+                <BookMarked className="h-6 w-6 text-teal-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg font-bold text-slate-100">LogIQ Notebook</h2>
+                  <Badge variant="teal" className="text-[9px]">NotebookLM-style</Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+                  Upload PDF, Word, slide — hỏi đáp thông minh kèm trích dẫn, tự tạo tóm tắt,
+                  flashcard và quiz. Học logistics từ tài liệu thật của bạn.
+                </p>
+                <div className="flex flex-wrap gap-3 mt-3 text-[10px] text-slate-500">
+                  <span className="flex items-center gap-1"><Upload className="h-3 w-3 text-teal-500" /> PDF · DOCX · TXT</span>
+                  <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 text-teal-500" /> Chat + trích dẫn</span>
+                </div>
+              </div>
+            </div>
+            <Button asChild className="shrink-0 bg-teal-600 hover:bg-teal-500">
+              <Link href="/notebook">
+                Bắt đầu upload
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {dashboardKPIs.map((kpi, i) => (
