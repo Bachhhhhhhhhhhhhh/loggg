@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Layers,
   HelpCircle,
+  FlaskConical,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KnowledgeArticle } from "@/components/resources/KnowledgeArticle";
@@ -70,11 +71,12 @@ export default function ResourcesPage() {
         icon={<Database className="h-5 w-5" />}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {[
           { icon: BookMarked, label: "Chủ đề", value: knowledgeStats.topics, color: "text-blue-400" },
           { icon: Lightbulb, label: "Khái niệm", value: knowledgeStats.concepts, color: "text-teal-400" },
           { icon: Layers, label: "Chuyên sâu", value: knowledgeStats.sections, color: "text-purple-400" },
+          { icon: FlaskConical, label: "Mô phỏng", value: knowledgeStats.simulations, color: "text-emerald-400" },
           { icon: Calculator, label: "Công thức", value: knowledgeStats.formulas, color: "text-indigo-400" },
           { icon: HelpCircle, label: "FAQ", value: knowledgeStats.faq, color: "text-pink-400" },
           { icon: BookOpen, label: "Case study", value: knowledgeStats.caseStudies, color: "text-amber-400" },

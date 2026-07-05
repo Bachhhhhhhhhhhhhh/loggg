@@ -19,6 +19,7 @@ type Enrichment = Partial<
     | "faq"
     | "glossary"
     | "sections"
+    | "simulationModels"
     | "implementationNotes"
   >
 >;
@@ -56,6 +57,7 @@ export function enrichEntry(entry: KnowledgeEntry, extra?: Enrichment): Knowledg
     faq: mergeList(entry.faq, extra.faq),
     glossary: mergeList(entry.glossary, extra.glossary),
     sections: mergeList(entry.sections, extra.sections),
+    simulationModels: mergeList(entry.simulationModels, extra.simulationModels),
     implementationNotes: appendText(entry.implementationNotes, extra.implementationNotes),
   };
 }

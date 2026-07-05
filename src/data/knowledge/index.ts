@@ -3,7 +3,10 @@ import { operationsEntries } from "./entries-operations";
 import { advancedEntries } from "./entries-advanced";
 import { forecastingEntries } from "./entries-forecasting";
 import { fundamentalsEntries } from "./entries-fundamentals";
+import { advancedModelEntries } from "./entries-advanced-models";
 import { deepEnrichment } from "./deep-enrichment";
+import { contentExpansion } from "./content-expansion";
+import { simulationByEntry } from "./simulation-config";
 import { enrichEntry } from "./enrich";
 import type { KnowledgeEntry, KnowledgeCategory } from "./types";
 
@@ -17,6 +20,8 @@ export type {
   KnowledgeMetric,
   KnowledgeSection,
   KnowledgeDifficulty,
+  KnowledgeSimulationModel,
+  SimulationModelType,
 } from "./types";
 
 const rawKnowledgeBase: KnowledgeEntry[] = [
@@ -25,11 +30,17 @@ const rawKnowledgeBase: KnowledgeEntry[] = [
   ...advancedEntries,
   ...forecastingEntries,
   ...fundamentalsEntries,
+  ...advancedModelEntries,
 ];
 
-export const knowledgeBase: KnowledgeEntry[] = rawKnowledgeBase.map((k) =>
-  enrichEntry(k, deepEnrichment[k.id])
-);
+export const knowledgeBase: KnowledgeEntry[] = rawKnowledgeBase.map((k) => {
+  let entry = enrichEntry(k, deepEnrichment[k.id]);
+  entry = enrichEntry(entry, contentExpansion[k.id]);
+  if (simulationByEntry[k.id]) {
+    entry = enrichEntry(entry, { simulationModels: simulationByEntry[k.id] });
+  }
+  return entry;
+});
 
 export function getKnowledgeEntry(id: string): KnowledgeEntry | undefined {
   return knowledgeBase.find((k) => k.id === id);
@@ -62,6 +73,7 @@ function entrySearchText(k: KnowledgeEntry): string {
     ...(k.glossary?.map((g) => `${g.term} ${g.definition}`) ?? []),
     ...(k.sections?.map((s) => `${s.title} ${s.content} ${(s.bullets ?? []).join(" ")}`) ?? []),
     ...(k.caseStudies?.map((c) => `${c.title} ${c.context} ${c.challenge} ${c.solution} ${c.result}`) ?? []),
+    ...(k.simulationModels?.map((s) => `${s.title} ${s.description} ${s.scientificNote}`) ?? []),
   ]
     .join(" ")
     .toLowerCase();
@@ -84,4 +96,5 @@ export const knowledgeStats = {
   caseStudies: knowledgeBase.reduce((n, k) => n + (k.caseStudies?.length ?? 0), 0),
   sections: knowledgeBase.reduce((n, k) => n + (k.sections?.length ?? 0), 0),
   faq: knowledgeBase.reduce((n, k) => n + (k.faq?.length ?? 0), 0),
+  simulations: knowledgeBase.reduce((n, k) => n + (k.simulationModels?.length ?? 0), 0),
 };

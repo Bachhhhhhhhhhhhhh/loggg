@@ -37,6 +37,40 @@ export interface KnowledgeSection {
   bullets?: string[];
 }
 
+/** Loại mô hình mô phỏng tương tác nhúng trong bài tri thức */
+export type SimulationModelType =
+  | "eoq"
+  | "eoq-discount"
+  | "safety-stock"
+  | "service-level"
+  | "monte-carlo"
+  | "inventory-policy"
+  | "abc-classify"
+  | "abc-xyz-matrix"
+  | "newsvendor"
+  | "bullwhip"
+  | "transport-lp"
+  | "forecast-mape"
+  | "carbon-transport"
+  | "queueing-dock"
+  | "sop-gap";
+
+export interface KnowledgeSimulationModel {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  modelType: SimulationModelType;
+  /** Cơ sở khoa học / công thức cốt lõi */
+  scientificNote: string;
+  /** Giả định mô hình — người dùng cần biết */
+  assumptions: string[];
+  /** Đầu ra mô phỏng */
+  outputs: string[];
+  /** Tham số mặc định (JSON-serializable) */
+  defaultParams?: Record<string, number>;
+}
+
 export type KnowledgeDifficulty = "Cơ bản" | "Trung cấp" | "Nâng cao";
 export type KnowledgeCategory =
   | "Phân tích"
@@ -76,6 +110,7 @@ export interface KnowledgeEntry {
   faq?: KnowledgeFAQ[];
   glossary?: KnowledgeGlossaryItem[];
   sections?: KnowledgeSection[];
+  simulationModels?: KnowledgeSimulationModel[];
   pythonStack: string[];
   implementationNotes: string;
   relatedModuleIds: string[];

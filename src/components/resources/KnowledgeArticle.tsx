@@ -14,6 +14,7 @@ import {
   BarChart3,
   Layers,
 } from "lucide-react";
+import { KnowledgeSimulator } from "./KnowledgeSimulator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeBlock } from "@/components/learn/CodeBlock";
@@ -77,6 +78,12 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
             <p className="text-xs text-slate-400 mt-2 line-clamp-3 leading-relaxed">
               {entry.summary}
             </p>
+            {entry.simulationModels && entry.simulationModels.length > 0 && (
+              <Badge variant="teal" className="text-[9px] mt-2 gap-0.5">
+                <FlaskConical className="h-2.5 w-2.5" />
+                {entry.simulationModels.length} mô phỏng
+              </Badge>
+            )}
             <div className="flex flex-wrap gap-1 mt-3">
               {entry.keyConcepts.slice(0, 2).map((c) => (
                 <Badge key={c} variant="teal" className="text-[9px]">
@@ -101,6 +108,7 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
     { id: "concepts", label: "Khái niệm" },
     ...(entry.sections?.map((s) => ({ id: s.id, label: s.title })) ?? []),
     entry.stepByStep.length > 0 && { id: "steps", label: "Quy trình" },
+    entry.simulationModels?.length && { id: "simulations", label: "Mô phỏng" },
     entry.formulas?.length && { id: "formulas", label: "Công thức" },
     entry.metrics?.length && { id: "metrics", label: "KPI" },
     entry.caseStudies?.length && { id: "cases", label: "Case study" },
@@ -135,10 +143,16 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
               {entry.difficulty}
             </Badge>
             <Badge variant="secondary">{entry.language}</Badge>
-            <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="gap-1">
               <Clock className="h-3 w-3" />
               {entry.readingTime}
             </Badge>
+            {entry.simulationModels && entry.simulationModels.length > 0 && (
+              <Badge variant="teal" className="gap-1">
+                <FlaskConical className="h-3 w-3" />
+                {entry.simulationModels.length} mô phỏng
+              </Badge>
+            )}
           </div>
           <h1 className="text-2xl font-bold text-slate-50">{entry.title}</h1>
           <p className="text-sm text-teal-400 mt-1">{entry.subtitle}</p>
@@ -269,6 +283,10 @@ export function KnowledgeArticle({ entry, compact = false }: KnowledgeArticlePro
             </CardContent>
           </Card>
         </div>
+
+        {entry.simulationModels && entry.simulationModels.length > 0 && (
+          <KnowledgeSimulator models={entry.simulationModels} />
+        )}
 
         {entry.stepByStep.length > 0 && (
           <Card id="steps">
