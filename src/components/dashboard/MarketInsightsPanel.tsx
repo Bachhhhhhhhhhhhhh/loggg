@@ -6,7 +6,7 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
-  Key,
+  CheckCircle2,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -20,13 +20,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMarketData } from "@/context/MarketDataContext";
-import { getEffectiveGeminiKey, isGeminiConfigured } from "@/lib/gemini/config";
+import {
+  getEffectiveGeminiKey,
+  hasGeminiApiKey,
+  isMarketBriefingReady,
+  maskGeminiKey,
+} from "@/lib/gemini/config";
+import { testGeminiApi } from "@/lib/notebook/ai";
 import { generateMarketBriefing } from "@/lib/gemini/market-briefing";
 import type { BriefingDepth, MarketBriefingResult } from "@/lib/market/briefing-types";
 import { renderMarkdownLite } from "@/components/notebook/markdown-lite";
 import { cn } from "@/lib/utils";
 
-const BRIEFING_CACHE_KEY = "logiq-market-briefing-v2";
+const BRIEFING_CACHE_KEY = "logiq-market-briefing-v3";
 const BRIEFING_TTL_MS = 20 * 60 * 1000;
 
 type TabId = "overview" | "fx" | "scm" | "scenarios" | "actions" | "report";
@@ -37,7 +43,7 @@ const TABS: { id: TabId; label: string; icon: typeof Sparkles }[] = [
   { id: "scm", label: "Tác động SCM", icon: Shield },
   { id: "scenarios", label: "Kịch bản", icon: Target },
   { id: "actions", label: "Hành động", icon: ListChecks },
-  { id: "report", label: "Báo cáo đầy đủ", icon: Sparkles },
+  { id: "report", label: "Báo cáo Gemini", icon: Sparkles },
 ];
 
 const DEPTH_OPTIONS: { id: BriefingDepth; label: string }[] = [
@@ -46,7 +52,7 @@ const DEPTH_OPTIONS: { id: BriefingDepth; label: string }[] = [
   { id: "deep", label: "Chuyên sâu" },
 ];
 
-interface CachedBriefingV2 {
+interface CachedBriefing {
   briefing: MarketBriefingResult;
   marketAt: number;
   fetchedAt: number;
@@ -56,7 +62,7 @@ function loadCached(marketAt: number): MarketBriefingResult | null {
   try {
     const raw = localStorage.getItem(BRIEFING_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedBriefingV2;
+    const parsed = JSON.parse(raw) as CachedBriefing;
     if (Date.now() - parsed.fetchedAt > BRIEFING_TTL_MS) return null;
     if (parsed.marketAt !== marketAt) return null;
     return parsed.briefing;
@@ -67,12 +73,20 @@ function loadCached(marketAt: number): MarketBriefingResult | null {
 
 function saveCached(briefing: MarketBriefingResult, marketAt: number): void {
   try {
-    const data: CachedBriefingV2 = {
-      briefing,
-      marketAt,
-      fetchedAt: Date.now(),
-    };
-    localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify(data));
+    localStorage.setItem(
+      BRIEFING_CACHE_KEY,
+      JSON.stringify({ briefing, marketAt, fetchedAt: Date.now() })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearCached(): void {
+  try {
+    localStorage.removeItem(BRIEFING_CACHE_KEY);
+    localStorage.removeItem("logiq-market-briefing-v2");
+    localStorage.removeItem("logiq-market-briefing-v1");
   } catch {
     /* ignore */
   }
@@ -120,18 +134,48 @@ export function MarketInsightsPanel() {
   const { snapshot, loading: marketLoading, lastUpdatedLabel } = useMarketData();
   const [briefing, setBriefing] = useState<MarketBriefingResult | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [connectionOk, setConnectionOk] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
   const [depth, setDepth] = useState<BriefingDepth>("standard");
   const [streamPreview, setStreamPreview] = useState<string | null>(null);
 
-  const geminiReady = isGeminiConfigured();
+  const keyReady = hasGeminiApiKey();
+  const briefingReady = isMarketBriefingReady();
+
+  const testConnection = useCallback(async () => {
+    const key = getEffectiveGeminiKey();
+    if (key.length < 20) {
+      setConnectionOk(false);
+      setError("Chưa có API key — mở ⚙️ Cài đặt AI trên Navbar → nhập key → Test → Lưu");
+      return;
+    }
+    setTesting(true);
+    setError(null);
+    try {
+      await testGeminiApi(key);
+      setConnectionOk(true);
+    } catch (err) {
+      setConnectionOk(false);
+      setError(err instanceof Error ? err.message : "Test kết nối thất bại");
+    } finally {
+      setTesting(false);
+    }
+  }, []);
 
   const generate = useCallback(
     async (force = false) => {
+      if (!keyReady) {
+        setError("Chưa có Gemini API key — ⚙️ Navbar → Cài đặt AI → Test → Lưu");
+        return;
+      }
+
+      if (force) clearCached();
+
       if (!force && snapshot.fetchedAt > 0) {
         const cached = loadCached(snapshot.fetchedAt);
-        if (cached) {
+        if (cached?.source === "gemini") {
           setBriefing(cached);
           setError(null);
           return;
@@ -146,13 +190,24 @@ export function MarketInsightsPanel() {
         const key = getEffectiveGeminiKey();
         const result = await generateMarketBriefing(key, snapshot, {
           depth,
-          onStream: (partial) => setStreamPreview(partial.slice(0, 120) + "…"),
+          onStream: (partial) => {
+            const preview = partial.replace(/[{[\]"]/g, " ").slice(-140);
+            setStreamPreview(preview + "…");
+          },
         });
-        setBriefing(result);
-        saveCached(result, snapshot.fetchedAt);
 
-        if (result.source === "local" && result.marketPulse.summary.includes("Gemini fallback")) {
-          setError("Gemini lỗi — đang hiển thị bản phân tích cục bộ (vẫn dùng được)");
+        setBriefing(result);
+
+        if (result.source === "gemini") {
+          saveCached(result, snapshot.fetchedAt);
+          setError(null);
+          setConnectionOk(true);
+        } else {
+          const errInSummary = result.marketPulse.summary.match(/Gemini lỗi:\*\* ([^\n]+)/);
+          setError(
+            errInSummary?.[1] ??
+              "Gemini không phản hồi — hiển thị bản cục bộ. Nhấn 'Test Gemini' để kiểm tra key."
+          );
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi tạo briefing");
@@ -161,7 +216,7 @@ export function MarketInsightsPanel() {
         setStreamPreview(null);
       }
     },
-    [snapshot, depth]
+    [keyReady, snapshot, depth]
   );
 
   useEffect(() => {
@@ -171,6 +226,12 @@ export function MarketInsightsPanel() {
     }
   }, [snapshot.fetchedAt, briefing, generating]);
 
+  useEffect(() => {
+    if (keyReady && connectionOk === null) {
+      testConnection();
+    }
+  }, [keyReady, connectionOk, testConnection]);
+
   return (
     <Card className="glow-teal overflow-hidden">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -179,32 +240,52 @@ export function MarketInsightsPanel() {
           Gemini Market Intelligence
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          {geminiReady ? (
+          {briefingReady ? (
             <Badge variant="success" className="text-[9px] gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 pulse-live" />
-              Gemini
+              {connectionOk ? (
+                <CheckCircle2 className="h-2.5 w-2.5" />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 pulse-live" />
+              )}
+              Key {maskGeminiKey()}
             </Badge>
           ) : (
-            <Badge variant="warning" className="text-[9px] gap-1">
-              <Key className="h-2.5 w-2.5" />
-              Cần API key
+            <Badge variant="warning" className="text-[9px]">
+              Chưa có key
             </Badge>
           )}
           <Badge variant={snapshot.isLive ? "teal" : "secondary"} className="text-[9px]">
-            {snapshot.isLive ? `LIVE · ${lastUpdatedLabel}` : "DEMO + LIVE mix"}
+            {snapshot.isLive ? `LIVE · ${lastUpdatedLabel}` : "DEMO data"}
           </Badge>
           {briefing && (
-            <Badge variant="secondary" className="text-[9px] font-mono">
-              {briefing.source === "gemini" ? briefing.model : "Local Engine"}
+            <Badge
+              variant={briefing.source === "gemini" ? "success" : "warning"}
+              className="text-[9px] font-mono"
+            >
+              {briefing.source === "gemini" ? briefing.model : "Local fallback"}
             </Badge>
           )}
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Phân tích SCM đa tầng: FX, commodity, KPI logistics, kịch bản Bull/Base/Bear, action items P1-P3 — powered by Gemini + real-time feed.
-        </p>
+        <div className="pro-surface rounded-xl p-3.5 flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="text-slate-500">Engine:</span>
+          <span className="text-teal-400 font-mono">generateGeminiRaw</span>
+          <span className="text-slate-600">·</span>
+          <span className="text-slate-500">cùng pipeline Notebook AI</span>
+          {briefingReady && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={testConnection}
+              disabled={testing}
+              className="h-6 text-[9px] ml-auto"
+            >
+              {testing ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : "Test Gemini"}
+            </Button>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {DEPTH_OPTIONS.map((d) => (
@@ -212,18 +293,15 @@ export function MarketInsightsPanel() {
               key={d.id}
               type="button"
               onClick={() => setDepth(d.id)}
-              className={cn(
-                "pro-filter-pill",
-                depth === d.id && "pro-filter-pill-active"
-              )}
+              className={cn("pro-filter-pill", depth === d.id && "pro-filter-pill-active")}
             >
               {d.label}
             </button>
           ))}
           <Button
             size="sm"
-            onClick={() => generate(briefing !== null)}
-            disabled={marketLoading || generating}
+            onClick={() => generate(true)}
+            disabled={marketLoading || generating || !keyReady}
             className="text-xs ml-auto"
           >
             {generating ? (
@@ -231,7 +309,7 @@ export function MarketInsightsPanel() {
             ) : (
               <Zap className="h-3.5 w-3.5 mr-1.5" />
             )}
-            {briefing ? "Phân tích lại" : "Tạo briefing SCM"}
+            {briefing ? "Phân tích lại (Gemini)" : "Tạo briefing Gemini"}
           </Button>
         </div>
 
@@ -239,10 +317,10 @@ export function MarketInsightsPanel() {
           <div className="pro-surface rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
-              Gemini đang phân tích {depth === "deep" ? "chuyên sâu" : depth === "quick" ? "nhanh" : "chuẩn"}…
+              Gemini đang viết báo cáo markdown ({depth})…
             </div>
             {streamPreview && (
-              <p className="text-[10px] text-slate-600 font-mono truncate">{streamPreview}</p>
+              <p className="text-[10px] text-slate-600 font-mono line-clamp-2">{streamPreview}</p>
             )}
           </div>
         )}
@@ -250,7 +328,21 @@ export function MarketInsightsPanel() {
         {error && (
           <p className="text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            {error}
+            <span>
+              {error}
+              {!keyReady && (
+                <span className="block mt-1 text-slate-500">
+                  Mở ⚙️ trên thanh điều hướng → nhập key từ aistudio.google.com/apikey
+                </span>
+              )}
+            </span>
+          </p>
+        )}
+
+        {connectionOk === true && !error && !briefing && !generating && (
+          <p className="text-xs text-emerald-400/90 flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Gemini kết nối OK — nhấn &quot;Tạo briefing Gemini&quot;
           </p>
         )}
 
@@ -287,8 +379,8 @@ export function MarketInsightsPanel() {
                       <h3 className="text-sm font-semibold text-slate-100">
                         {briefing.marketPulse.headline}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                        {briefing.marketPulse.summary}
+                      <p className="text-xs text-slate-400 mt-2 leading-relaxed whitespace-pre-wrap">
+                        {briefing.marketPulse.summary.replace(/⚠️[\s\S]*$/, "").trim()}
                       </p>
                     </div>
                   </div>
@@ -296,60 +388,54 @@ export function MarketInsightsPanel() {
                     <Badge variant="secondary" className="text-[9px] capitalize">
                       {briefing.marketPulse.sentiment}
                     </Badge>
-                    <Badge variant="secondary" className="text-[9px]">
-                      Confidence: {briefing.confidence}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[9px]">
-                      Depth: {briefing.depth}
+                    <Badge variant={briefing.source === "gemini" ? "success" : "warning"} className="text-[9px]">
+                      {briefing.source === "gemini" ? "✓ Gemini AI" : "Local fallback"}
                     </Badge>
                   </div>
                 </div>
                 <div className="pro-surface rounded-xl p-4 space-y-4">
                   <RiskMeter score={briefing.marketPulse.riskScore} />
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Key Risks</p>
-                    <ul className="space-y-1.5">
-                      {briefing.keyRisks.slice(0, 4).map((r, i) => (
-                        <li key={i} className="text-[11px] text-slate-400 flex gap-2">
-                          <span className="text-red-400 shrink-0">!</span>
-                          {r}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <ul className="space-y-1.5">
+                    {briefing.keyRisks.slice(0, 5).map((r, i) => (
+                      <li key={i} className="text-[11px] text-slate-400 flex gap-2">
+                        <span className="text-red-400 shrink-0">!</span>
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             )}
 
             {tab === "fx" && (
               <div className="space-y-4">
-                <p className="text-xs text-slate-400 leading-relaxed">{briefing.fxAnalysis.overview}</p>
+                <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">
+                  {briefing.fxAnalysis.overview}
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {briefing.fxAnalysis.pairs.map((p) => (
-                    <div key={p.pair} className="pro-surface rounded-xl p-3.5">
+                  {briefing.fxAnalysis.pairs.map((p, i) => (
+                    <div key={`${p.pair}-${i}`} className="pro-surface rounded-xl p-3.5">
                       <div className="flex justify-between items-baseline mb-2">
                         <span className="font-mono font-bold text-blue-400">{p.pair}</span>
                         <span className="text-xs font-mono text-slate-300">{p.rate}</span>
                       </div>
                       <Badge variant="secondary" className="text-[9px] mb-2">{p.change}</Badge>
                       <p className="text-[11px] text-slate-400">{p.outlook}</p>
-                      <p className="text-[10px] text-teal-400/80 mt-1.5">{p.scmImpact}</p>
                     </div>
                   ))}
                 </div>
                 {briefing.commodityAnalysis.items.length > 0 && (
-                  <>
-                    <p className="text-xs text-slate-500 pt-2">{briefing.commodityAnalysis.overview}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {briefing.commodityAnalysis.items.map((c) => (
-                        <div key={c.name} className="pro-surface rounded-xl p-3.5 border-amber-500/10">
-                          <p className="font-semibold text-amber-400 text-sm">{c.name}</p>
-                          <p className="font-mono text-slate-200 mt-1">{c.price} <span className="text-xs text-slate-500">{c.change}</span></p>
-                          <p className="text-[10px] text-slate-400 mt-2">{c.freightImpact}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {briefing.commodityAnalysis.items.map((c, i) => (
+                      <div key={`${c.name}-${i}`} className="pro-surface rounded-xl p-3.5">
+                        <p className="font-semibold text-amber-400 text-sm">{c.name}</p>
+                        <p className="font-mono text-slate-200 mt-1">
+                          {c.price} <span className="text-xs text-slate-500">{c.change}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-2">{c.freightImpact}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -363,7 +449,6 @@ export function MarketInsightsPanel() {
                       <Badge variant="secondary" className="text-[9px] uppercase">{s.severity}</Badge>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">{s.impact}</p>
-                    <p className="text-[10px] text-slate-600 font-mono mt-2">KPI: {s.kpiLink}</p>
                   </div>
                 ))}
               </div>
@@ -378,13 +463,6 @@ export function MarketInsightsPanel() {
                       <Badge variant="teal" className="text-[9px] font-mono">{s.probability}</Badge>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">{s.narrative}</p>
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {s.triggers.map((t, j) => (
-                        <span key={j} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 font-mono">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 ))}
               </div>
@@ -392,37 +470,28 @@ export function MarketInsightsPanel() {
 
             {tab === "actions" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  {briefing.actionItems.map((a, i) => (
-                    <div key={i} className="pro-surface rounded-xl p-3.5 flex gap-3 items-start">
-                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border shrink-0", priorityColor(a.priority))}>
-                        {a.priority}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-slate-200">{a.action}</p>
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          {a.role} · {a.horizon}
-                        </p>
-                      </div>
+                {briefing.actionItems.map((a, i) => (
+                  <div key={i} className="pro-surface rounded-xl p-3.5 flex gap-3 items-start">
+                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border shrink-0", priorityColor(a.priority))}>
+                      {a.priority}
+                    </span>
+                    <div>
+                      <p className="text-xs text-slate-200">{a.action}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{a.role} · {a.horizon}</p>
                     </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Watchlist</p>
-                  <div className="flex flex-wrap gap-2">
-                    {briefing.watchlist.map((w, i) => (
-                      <Badge key={i} variant="secondary" className="text-[9px] font-mono">
-                        {w}
-                      </Badge>
-                    ))}
                   </div>
+                ))}
+                <div className="flex flex-wrap gap-2">
+                  {briefing.watchlist.map((w, i) => (
+                    <Badge key={i} variant="secondary" className="text-[9px] font-mono">{w}</Badge>
+                  ))}
                 </div>
               </div>
             )}
 
             {tab === "report" && (
-              <div className="pro-surface rounded-xl p-4 text-sm text-slate-300 leading-relaxed max-h-[480px] overflow-y-auto">
-                {renderMarkdownLite(briefing.fullReport || briefing.marketPulse.summary)}
+              <div className="pro-surface rounded-xl p-4 text-sm max-h-[520px] overflow-y-auto">
+                {renderMarkdownLite(briefing.fullReport)}
               </div>
             )}
 
@@ -430,14 +499,9 @@ export function MarketInsightsPanel() {
               <span className="text-[10px] text-slate-600 font-mono">
                 {new Date(briefing.generatedAt).toLocaleString("vi-VN")} · {briefing.model}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => generate(true)}
-                className="text-[10px] h-7"
-              >
+              <Button size="sm" variant="outline" onClick={() => generate(true)} className="text-[10px] h-7">
                 <RefreshCw className="h-3 w-3 mr-1" />
-                Làm mới
+                Gọi Gemini mới
               </Button>
             </div>
           </div>

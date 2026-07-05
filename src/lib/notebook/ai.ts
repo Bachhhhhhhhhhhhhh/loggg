@@ -161,6 +161,64 @@ export async function testGeminiApi(apiKey: string): Promise<string> {
   });
 }
 
+/** Gọi Gemini trực tiếp — dùng chung engine với Notebook (multi-model fallback + retry) */
+export async function generateGeminiRaw(
+  apiKey: string,
+  prompt: string,
+  options?: {
+    systemInstruction?: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+    onStream?: (partial: string) => void;
+  }
+): Promise<{ text: string; model: string }> {
+  const genAI = getClient(apiKey);
+  const errors: string[] = [];
+
+  for (const modelName of orderedModels()) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: options?.systemInstruction ?? CHAT_SYSTEM_INSTRUCTION,
+        generationConfig: {
+          temperature: options?.temperature ?? 0.55,
+          topP: 0.92,
+          topK: 40,
+          maxOutputTokens: options?.maxOutputTokens ?? 8192,
+        },
+      });
+
+      let text = "";
+
+      if (options?.onStream) {
+        const result = await withRetry(() => model.generateContentStream(prompt));
+        for await (const chunk of result.stream) {
+          try {
+            const piece = chunk.text();
+            if (piece) {
+              text += piece;
+              options.onStream(text);
+            }
+          } catch {
+            /* chunk rỗng */
+          }
+        }
+      } else {
+        const result = await withRetry(() => model.generateContent(prompt));
+        text = result.response.text() ?? "";
+      }
+
+      if (!text.trim()) throw new Error("AI trả về rỗng");
+      setPreferredModel(modelName);
+      return { text: polishAiResponse(text.trim()), model: modelName };
+    } catch (err) {
+      errors.push(`${modelName}: ${formatGeminiError(err)}`);
+    }
+  }
+
+  throw new Error(errors.join(" · ") || "Không kết nối được Gemini");
+}
+
 export async function askGemini(
   apiKey: string,
   question: string,
